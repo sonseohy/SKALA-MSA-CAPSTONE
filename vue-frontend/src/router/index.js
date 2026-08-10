@@ -19,6 +19,24 @@ const routes = [
     component: () => import('@/views/CallbackView.vue')
   },
   {
+    path: '/hrd',
+    name: 'HrdDashboard',
+    component: () => import('@/views/HrdDashboardView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/needs',
+    name: 'EducationNeeds',
+    component: () => import('@/views/EducationNeedsView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/recommendations',
+    name: 'RecommendedPrograms',
+    component: () => import('@/views/RecommendedProgramsView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/courses',
     name: 'CourseList',
     component: () => import('@/views/CourseListView.vue'),
@@ -37,9 +55,27 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/providers/:id',
+    name: 'ProviderDetail',
+    component: () => import('@/views/ProviderDetailView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/enrollments',
     name: 'Enrollment',
     component: () => import('@/views/EnrollmentView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/trainings',
+    name: 'Trainings',
+    component: () => import('@/views/EnrollmentView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/surveys',
+    name: 'Survey',
+    component: () => import('@/views/SurveyView.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -58,7 +94,6 @@ const router = createRouter({
   }
 })
 
-// 인증/권한 가드
 router.beforeEach((to) => {
   const auth = useAuthStore()
 
@@ -67,7 +102,7 @@ router.beforeEach((to) => {
   }
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
-    return { name: 'CourseList' }
+    return { name: 'HrdDashboard' }
   }
 
   if (to.meta.instructorOnly && auth.user?.role !== 'INSTRUCTOR') {
