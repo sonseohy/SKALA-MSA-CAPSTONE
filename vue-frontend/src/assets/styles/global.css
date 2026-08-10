@@ -107,6 +107,17 @@ button {
   font-weight: 700;
 }
 
+.table-title-link {
+  display: inline-flex;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.table-title-link:hover {
+  color: var(--primary);
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -973,6 +984,15 @@ td small {
   color: var(--text-faint);
 }
 
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover,
+.clickable-row.selected {
+  background: #fff7f8;
+}
+
 .status-badge {
   display: inline-flex;
   min-height: 26px;
@@ -1056,6 +1076,57 @@ td small {
 .survey-form {
   display: grid;
   gap: 14px;
+}
+
+.survey-results-grid {
+  align-items: start;
+}
+
+.survey-detail-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.survey-detail-head h3 {
+  margin: 12px 0 4px;
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.survey-detail-head p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.survey-score-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.survey-score-grid div {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.survey-score-grid span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.survey-score-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 24px;
+}
+
+.survey-section h3 {
+  margin: 0;
+  font-size: 15px;
 }
 
 .notice-box {

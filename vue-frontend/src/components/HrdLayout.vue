@@ -39,8 +39,6 @@
             <input type="search" :placeholder="searchPlaceholder" />
           </label>
           <span class="hrd-role">{{ currentRole }}</span>
-          <button type="button" class="hrd-icon-btn" aria-label="Notifications">!</button>
-          <button type="button" class="hrd-icon-btn" aria-label="Help">?</button>
           <router-link to="/mypage" class="hrd-avatar" :title="auth.user?.name || 'My Page'">
             {{ initial }}
           </router-link>

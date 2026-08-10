@@ -26,7 +26,9 @@
         <tbody>
           <tr v-for="item in visibleItems" :key="item.id">
             <td>
-              <strong>{{ item.course?.title || `Program #${item.courseId}` }}</strong>
+              <router-link :to="`/courses/${item.courseId}`" class="table-title-link">
+                {{ item.course?.title || `Program #${item.courseId}` }}
+              </router-link>
               <small>Contract #{{ item.id }}</small>
             </td>
             <td>{{ item.course?.category || '-' }}</td>
@@ -38,7 +40,7 @@
             <td><span class="status-badge" :class="item.status === 'ACTIVE' ? 'active' : 'pending'">{{ statusLabel(item.status) }}</span></td>
             <td>
               <router-link :to="`/courses/${item.courseId}`" class="text-link">상세</router-link>
-              <router-link v-if="item.status === 'ACTIVE'" to="/surveys" class="text-link">만족도</router-link>
+              <router-link v-if="item.status === 'ACTIVE'" :to="`/surveys?courseId=${item.courseId}`" class="text-link">만족도 결과</router-link>
             </td>
           </tr>
         </tbody>
