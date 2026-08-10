@@ -196,6 +196,9 @@ onMounted(async () => {
   try {
     const res = await courseApi.getAll()
     courses.value = unwrapListResponse(res)
+  } catch (error) {
+    console.error('[HrdDashboard] failed to load courses:', error)
+    courses.value = []
   } finally {
     loading.value = false
   }
