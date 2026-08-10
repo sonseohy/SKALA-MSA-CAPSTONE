@@ -17,15 +17,19 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
+    // 401 을 조용히 넘기면 화면은 로그인 상태를 유지한 채 빈 목록을 보여 준다.
+    // 사용자가 인증 만료를 "데이터 없음" 으로 오인하므로 세션을 정리하고 로그인으로 보낸다.
     if (err.response?.status === 401) {
-      console.error('[API] 401 Unauthorized')
-      console.error('[API] response data =', err.response?.data)
-      console.error('[API] request url =', err.config?.url)
-      // 디버깅 중에는 자동 로그아웃/리다이렉트 잠시 비활성화
-      // const auth = useAuthStore()
-      // auth.logout()
-      // window.location.href = '/login'
+      const auth = useAuthStore()
+      if (auth.isAuthenticated) {
+        auth.logout(false)
+        // 순환 참조를 피하려고 라우터는 호출 시점에 가져온다.
+        const { default: router } = await import('@/router/index.js')
+        if (router.currentRoute.value.name !== 'Login') {
+          router.replace({ name: 'Login', query: { expired: '1' } })
+        }
+      }
     }
     return Promise.reject(err)
   }

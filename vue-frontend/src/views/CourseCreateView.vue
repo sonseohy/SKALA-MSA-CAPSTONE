@@ -84,7 +84,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import HrdLayout from '@/components/HrdLayout.vue'
 import { courseApi } from '@/api/course.js'
-import { categoryOptions } from '@/utils/hrd.js'
+import { categoryOptions, deliveryTypeOptions } from '@/utils/hrd.js'
 
 const router = useRouter()
 const submitting = ref(false)
@@ -104,13 +104,6 @@ const form = reactive({
   region: '',
   difficulty: 'AUTO'
 })
-
-const deliveryTypeOptions = [
-  { value: 'TBD', label: '협의' },
-  { value: 'ONLINE', label: '온라인' },
-  { value: 'OFFLINE', label: '오프라인' },
-  { value: 'HYBRID', label: '온/오프라인 병행' }
-]
 
 const difficultyOptions = [
   { value: 'AUTO', label: '자동 선택' },

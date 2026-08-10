@@ -55,6 +55,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/providers',
+    name: 'ProviderList',
+    component: () => import('@/views/ProviderListView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/providers/:id',
     name: 'ProviderDetail',
     component: () => import('@/views/ProviderDetailView.vue'),
@@ -77,6 +83,12 @@ const routes = [
     name: 'Survey',
     component: () => import('@/views/SurveyView.vue'),
     meta: { requiresAuth: true, hrdOnly: true }
+  },
+  {
+    // 없는 주소로 들어오면 빈 화면 대신 시작 지점으로 보낸다.
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    redirect: () => ({ name: 'Landing' })
   }
 ]
 
