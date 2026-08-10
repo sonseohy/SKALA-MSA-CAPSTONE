@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from enum import Enum
 from decimal import Decimal
-from datetime import datetime
+from datetime import date, datetime
 
 
 class CourseCategory(str, Enum):
@@ -22,6 +22,13 @@ class CourseResponse(BaseModel):
     description: Optional[str] = None
     category: CourseCategory
     price: Decimal
+    durationDays: Optional[int] = None
+    startDate: Optional[date] = None
+    endDate: Optional[date] = None
+    deliveryType: Optional[str] = None
+    targetAudience: Optional[str] = None
+    region: Optional[str] = None
+    difficulty: Optional[str] = None
     instructorId: int
     enrollmentCount: int
     status: str

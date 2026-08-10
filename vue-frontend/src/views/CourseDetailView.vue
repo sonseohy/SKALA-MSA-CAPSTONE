@@ -1,415 +1,139 @@
 <template>
-  <div class="page-wrapper">
-    <AppHeader />
+  <HrdLayout>
+    <div v-if="loading" class="empty-panel">프로그램 정보를 불러오는 중입니다.</div>
 
-    <div class="detail-layout" v-if="course">
-      <div class="detail-hero">
-        <div class="detail-hero-inner">
-          <!-- 좌측 상세 정보 -->
-          <div class="detail-info fade-in-up">
-            <span class="badge" :class="badgeClass">{{ displayCategory }}</span>
-            <h1 class="detail-title">{{ course.title }}</h1>
-            <p class="detail-desc">
-              {{ course.description || '실무 전문가가 직접 설계한 커리큘럼으로 체계적으로 학습하세요.' }}
-            </p>
-
-            <div class="detail-meta">
-              <span>강사: {{ displayInstructorName }}</span>
-              <span>수강생: {{ displayEnrollmentCount }}명</span>
-            </div>
-          </div>
-
-          <!-- 우측 결제/수강 카드 -->
-          <div class="enroll-card fade-in">
-            <div class="enroll-thumb" :class="thumbBg">
-              <img v-if="thumbSrc" :src="thumbSrc" :alt="course.title" />
-            </div>
-
-            <div class="enroll-body">
-              <div class="enroll-price">₩{{ displayPrice }}</div>
-
-              <button
-                class="btn btn-primary btn-full"
-                @click="handlePrimaryAction"
-                :disabled="buttonDisabled"
-                :class="{ 'btn-disabled': buttonDisabled }"
-              >
-                <span v-if="enrolling">처리 중...</span>
-                <span v-else>{{ buttonLabel }}</span>
-              </button>
-
-              <div v-if="enrollError" class="error-msg">{{ enrollError }}</div>
-
-              <p class="helper-text" v-if="helperText">
-                {{ helperText }}
-              </p>
-
-              <ul class="enroll-info-list">
-                <li>✅ 즉시 수강 가능</li>
-                <li>✅ 평생 소장</li>
-                <li>✅ 수료증 발급</li>
-              </ul>
-            </div>
-          </div>
+    <template v-else-if="course">
+      <section class="detail-hero">
+        <div>
+          <span class="pill">{{ normalized.categoryLabel }}</span>
+          <h1>{{ course.title }}</h1>
+          <p>{{ course.description || '기업 역량 강화를 위한 실무 중심 교육 프로그램입니다.' }}</p>
         </div>
-      </div>
-    </div>
+        <aside class="contract-card">
+          <span>예상 교육비</span>
+          <strong>{{ formatPrice(course.price) }}</strong>
+          <button type="button" class="btn btn-primary" :disabled="isInstructor || submitting" @click="requestContract">
+            {{ buttonText }}
+          </button>
+          <small>{{ helperText }}</small>
+        </aside>
+      </section>
 
-    <div v-else-if="loading" class="loading-center">
-      <div class="spinner"></div>
-    </div>
+      <section class="content-grid two">
+        <article class="panel">
+          <h2>교육 구성</h2>
+          <div class="info-grid">
+            <div><span>교육 분야</span><strong>{{ normalized.categoryLabel }}</strong></div>
+            <div><span>교육 공급자</span><strong>{{ normalized.providerName }}</strong></div>
+            <div><span>교육 일정</span><strong>{{ normalized.scheduleLabel }}</strong></div>
+            <div><span>교육 기간</span><strong>{{ normalized.durationLabel }}</strong></div>
+            <div><span>교육 방식</span><strong>{{ normalized.deliveryTypeLabel }}</strong></div>
+            <div><span>교육 대상</span><strong>{{ course.targetAudience || '협의' }}</strong></div>
+            <div><span>교육 지역</span><strong>{{ course.region || '협의' }}</strong></div>
+            <div><span>난이도</span><strong>{{ normalized.difficultyLabel }}</strong></div>
+            <div><span>신청 수</span><strong>{{ course.enrollmentCount ?? 0 }}건</strong></div>
+            <div><span>상태</span><strong>{{ course.status || 'ACTIVE' }}</strong></div>
+          </div>
+          <ul class="curriculum-list">
+            <li>기업 니즈 진단 및 사례 기반 개념 정리</li>
+            <li>직무별 실습 과제와 적용 시나리오 설계</li>
+            <li>교육 종료 후 만족도 조사와 개선 포인트 수집</li>
+          </ul>
+        </article>
 
-    <div v-else class="loading-center">
-      <p class="empty-text">강의 정보를 불러오지 못했습니다.</p>
-    </div>
-  </div>
+        <article class="panel">
+          <div class="panel-title">
+            <h2>Provider Snapshot</h2>
+            <router-link to="/providers/1">상세 보기</router-link>
+          </div>
+          <div class="provider-card mini">
+            <div class="provider-avatar">{{ provider.name.charAt(0) }}</div>
+            <div>
+              <strong>{{ provider.name }}</strong>
+              <p>{{ provider.specialty }} · {{ provider.experience }}</p>
+              <span class="pill success">만족도 {{ provider.satisfaction }}</span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </template>
+
+    <section v-else class="empty-panel">
+      <h2>프로그램을 찾지 못했습니다.</h2>
+      <router-link to="/courses" class="btn btn-primary">카탈로그로 이동</router-link>
+    </section>
+  </HrdLayout>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppHeader from '@/components/AppHeader.vue'
-import { useCourseStore } from '@/store/course.js'
+import HrdLayout from '@/components/HrdLayout.vue'
+import { courseApi } from '@/api/course.js'
 import { enrollmentApi } from '@/api/enrollment.js'
 import { useAuthStore } from '@/store/auth.js'
+import { formatPrice, normalizeCourse, sampleProviders, unwrapObjectResponse } from '@/utils/hrd.js'
 
 const route = useRoute()
 const router = useRouter()
-const courseStore = useCourseStore()
 const auth = useAuthStore()
+const course = ref(null)
+const loading = ref(true)
+const submitting = ref(false)
+const status = ref('NONE')
+const provider = sampleProviders[0]
 
-const enrolling = ref(false)
-const enrollError = ref('')
-const enrollmentStatus = ref('NONE') // NONE | PENDING | ACTIVE
-
-const course = computed(() => courseStore.selectedCourse)
-const loading = computed(() => courseStore.loading)
 const isInstructor = computed(() => auth.user?.role === 'INSTRUCTOR')
-
-const categoryConfig = {
-  '백엔드': { badge: 'badge-teal', bg: 'thumb-teal', thumb: 'spring_boot' },
-  '프론트엔드': { badge: 'badge-teal', bg: 'thumb-teal', thumb: 'vue_js' },
-  'DevOps': { badge: 'badge-blue', bg: 'thumb-blue', thumb: 'kubernetes' },
-  '데이터': { badge: 'badge-purple', bg: 'thumb-purple', thumb: 'python' },
-  'AI': { badge: 'badge-pink', bg: 'thumb-pink', thumb: 'generative_ai' },
-}
-
-const config = computed(() => categoryConfig[course.value?.category] || {})
-const badgeClass = computed(() => config.value.badge || 'badge-gray')
-const thumbBg = computed(() => config.value.bg || 'thumb-gray')
-
-const displayCategory = computed(() => course.value?.category || '-')
-
-const displayInstructorName = computed(() => {
-  return (
-    course.value?.instructorName ||
-    course.value?.teacherName ||
-    course.value?.instructor?.name ||
-    course.value?.instructor_name ||
-    course.value?.ownerName ||
-    '강사 정보 없음'
-  )
+const normalized = computed(() => normalizeCourse(course.value))
+const buttonText = computed(() => {
+  if (isInstructor.value) return '공급자 계정은 신청 불가'
+  if (status.value === 'ACTIVE') return '내 계약으로 이동'
+  if (status.value === 'PENDING') return '신청 검토 중'
+  return submitting.value ? '신청 중...' : '교육 계약 신청'
 })
-
-const displayEnrollmentCount = computed(() => {
-  const value = Number(
-    course.value?.enrollmentCount ??
-    course.value?.enrollment_count ??
-    0
-  )
-  return Number.isNaN(value) ? 0 : value.toLocaleString()
-})
-
-const displayPrice = computed(() => {
-  const value = Number(course.value?.price ?? 0)
-  return Number.isNaN(value) ? '0' : value.toLocaleString()
-})
-
-const thumbSrc = computed(() => {
-  const key = course.value?.thumbnail || config.value.thumb
-  if (!key) return null
-
-  try {
-    return new URL(`../assets/images/courses/${key}.png`, import.meta.url).href
-  } catch {
-    return null
-  }
-})
-
-const buttonLabel = computed(() => {
-  if (isInstructor.value) return '강사 계정은 신청 불가'
-  if (enrollmentStatus.value === 'ACTIVE') return '내 수강 목록으로 이동'
-  if (enrollmentStatus.value === 'PENDING') return '신청 완료 · 결제 처리 중'
-  return '결제하고 수강하기'
-})
-
-const buttonDisabled = computed(() => {
-  if (enrolling.value) return true
-  if (isInstructor.value) return true
-  if (enrollmentStatus.value === 'PENDING') return true
-  return false
-})
-
 const helperText = computed(() => {
-  if (isInstructor.value) {
-    return '강사 계정은 본인 강의를 수강 신청할 수 없습니다.'
-  }
-
-  if (enrollmentStatus.value === 'ACTIVE') {
-    return '이미 수강 중인 강의입니다. 내 수강 목록에서 바로 이어서 학습할 수 있습니다.'
-  }
-
-  if (enrollmentStatus.value === 'PENDING') {
-    return '수강 신청이 접수되었습니다. 결제/처리 상태가 반영되면 내 수강 목록에서 확인할 수 있습니다.'
-  }
-
-  return '결제를 진행하면 수강 신청이 함께 처리됩니다.'
+  if (isInstructor.value) return '교육 공급자는 본인 프로그램을 신청할 수 없습니다.'
+  if (status.value === 'ACTIVE') return '이미 확정된 교육입니다.'
+  if (status.value === 'PENDING') return '계약 신청이 접수되었습니다.'
+  return '현재 실습용 payment-service가 계약 비용 처리를 시뮬레이션합니다.'
 })
 
-async function loadEnrollmentStatus() {
-  if (!auth.user?.id || !course.value?.id || isInstructor.value) {
-    enrollmentStatus.value = 'NONE'
-    return
-  }
-
+async function loadStatus() {
+  if (!auth.user?.id || !course.value?.id || isInstructor.value) return
   try {
     const res = await enrollmentApi.getMyEnrollments()
-    console.log('[CourseDetail] my enrollments response =', res.data)
-
-    const enrollments = Array.isArray(res.data?.data)
-      ? res.data.data
-      : Array.isArray(res.data)
-        ? res.data
-        : []
-
-    const matched = enrollments.find(item => Number(item.courseId) === Number(course.value.id))
-
-    if (!matched) {
-      enrollmentStatus.value = 'NONE'
-      return
-    }
-
-    enrollmentStatus.value = matched.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING'
-  } catch (e) {
-    console.error('[CourseDetail] failed to load enrollment status:', e)
-    enrollmentStatus.value = 'NONE'
+    const items = Array.isArray(res.data?.data) ? res.data.data : []
+    const matched = items.find(item => Number(item.courseId) === Number(course.value.id))
+    status.value = matched?.status || 'NONE'
+  } catch {
+    status.value = 'NONE'
   }
 }
 
-async function handlePrimaryAction() {
-  enrollError.value = ''
-
-  if (!course.value?.id) {
-    enrollError.value = '강의 정보가 올바르지 않습니다.'
-    return
-  }
-
-  if (isInstructor.value) {
-    enrollError.value = '강사 계정은 본인 강의를 수강 신청할 수 없습니다.'
-    return
-  }
-
-  if (enrollmentStatus.value === 'ACTIVE') {
+async function requestContract() {
+  if (status.value === 'ACTIVE') {
     router.push('/enrollments')
     return
   }
+  if (!course.value?.id || status.value === 'PENDING') return
 
-  if (enrollmentStatus.value === 'PENDING') {
-    return
-  }
-
-  enrolling.value = true
-
+  submitting.value = true
   try {
     await enrollmentApi.enroll(course.value.id)
-    enrollmentStatus.value = 'PENDING'
-  } catch (e) {
-    console.error('[CourseDetail] enroll failed:', e)
-    enrollError.value = e.response?.data?.message || '결제/수강 신청에 실패했습니다.'
+    status.value = 'PENDING'
+    setTimeout(() => router.push('/enrollments'), 600)
   } finally {
-    enrolling.value = false
+    submitting.value = false
   }
 }
 
 onMounted(async () => {
-  await courseStore.fetchCourse(route.params.id)
-  console.log('[CourseDetail] selectedCourse =', courseStore.selectedCourse)
-  await loadEnrollmentStatus()
+  try {
+    const res = await courseApi.getById(route.params.id)
+    course.value = normalizeCourse(unwrapObjectResponse(res))
+    await loadStatus()
+  } finally {
+    loading.value = false
+  }
 })
-
-watch(
-  () => courseStore.selectedCourse,
-  async (value) => {
-    console.log('[CourseDetail] selectedCourse changed =', value)
-    if (value?.id) {
-      await loadEnrollmentStatus()
-    }
-  },
-  { deep: true }
-)
 </script>
-
-<style scoped>
-.page-wrapper {
-  min-height: 100vh;
-  background: var(--color-bg-secondary);
-}
-
-.detail-hero {
-  background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%);
-  border-bottom: 1px solid var(--color-border);
-  padding: 48px 0;
-}
-
-.detail-hero-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 48px;
-  align-items: start;
-}
-
-.detail-info {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.detail-title {
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.detail-desc {
-  font-size: 15px;
-  color: var(--color-text-secondary);
-  line-height: 1.7;
-}
-
-.detail-meta {
-  display: flex;
-  gap: 20px;
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  flex-wrap: wrap;
-}
-
-.enroll-card {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-}
-
-.enroll-thumb {
-  height: 160px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.enroll-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 20px;
-}
-
-.thumb-teal { background: #E1F5EE; }
-.thumb-blue { background: #E6F1FB; }
-.thumb-purple { background: #EEEDFE; }
-.thumb-pink { background: #FBEAF0; }
-.thumb-gray { background: #F1EFE8; }
-
-.enroll-body {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.enroll-price {
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--color-primary);
-}
-
-.btn-full {
-  width: 100%;
-  padding: 13px;
-  font-size: 15px;
-  justify-content: center;
-}
-
-.btn-disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.enroll-info-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.enroll-info-list li {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.error-msg {
-  font-size: 13px;
-  color: #dc2626;
-  padding: 8px 12px;
-  background: #fef2f2;
-  border-radius: var(--radius-sm);
-}
-
-.helper-text {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  line-height: 1.5;
-}
-
-.empty-text {
-  font-size: 14px;
-  color: var(--color-text-muted);
-}
-
-.loading-center {
-  display: flex;
-  justify-content: center;
-  padding: 100px 0;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--color-border);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.badge-gray {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 900px) {
-  .detail-hero-inner {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

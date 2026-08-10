@@ -16,9 +16,9 @@
       <!-- 우측 액션 -->
       <div class="header-actions">
         <template v-if="auth.isAuthenticated">
-          <router-link to="/mypage" class="user-avatar" :title="auth.user?.name">
+          <span class="user-avatar" :title="auth.user?.name">
             {{ auth.user?.name?.charAt(0) || '?' }}
-          </router-link>
+          </span>
           <button class="btn btn-ghost btn-sm" @click="handleLogout">로그아웃</button>
         </template>
         <template v-else>

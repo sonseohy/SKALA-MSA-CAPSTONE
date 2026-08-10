@@ -1,376 +1,83 @@
 <template>
-  <div class="page-wrapper">
-    <AppHeader />
-    <div class="page-layout">
-      <aside class="sidebar">
-        <div class="sidebar-section">
-          <div class="sidebar-label">메뉴</div>
+  <HrdLayout>
+    <section class="page-head">
+      <div>
+        <p class="eyebrow">Contracts & Enrollments</p>
+        <h1>{{ isTrainingPage ? '진행 중인 교육' : '내 교육/계약 현황' }}</h1>
+        <p>{{ isTrainingPage ? '교육 확정 상태의 프로그램과 참여 현황을 확인합니다.' : '신청한 교육 계약과 참여 상태를 확인합니다.' }}</p>
+      </div>
+      <router-link to="/courses" class="btn btn-primary">새 교육 찾기</router-link>
+    </section>
 
-          <router-link to="/courses" class="sidebar-item">
-            <span class="si-icon">📚</span> 강의 목록
-          </router-link>
+    <section v-if="loading" class="panel">계약 목록을 불러오는 중입니다.</section>
 
-          <router-link
-            v-if="!isInstructor"
-            to="/enrollments"
-            class="sidebar-item active"
-          >
-            <span class="si-icon">✅</span> 내 수강 목록
-          </router-link>
-
-          <router-link to="/mypage" class="sidebar-item">
-            <span class="si-icon">⭐</span> 마이페이지
-          </router-link>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="sidebar-label">계정</div>
-          <router-link to="/mypage" class="sidebar-item">
-            <span class="si-icon">👤</span> 마이페이지
-          </router-link>
-          <button class="sidebar-item sidebar-btn" @click="handleLogout">
-            <span class="si-icon">🚪</span> 로그아웃
-          </button>
-        </div>
-      </aside>
-
-      <main class="main-content">
-        <h1 class="page-title">내 수강 목록</h1>
-
-        <div v-if="loading" class="loading-center">
-          <div class="spinner"></div>
-        </div>
-
-        <div v-else-if="enrollments.length" class="enrollment-list fade-in">
-          <div v-for="item in enrollments" :key="item.id" class="enrollment-card">
-            <div class="enroll-thumb" :class="getThumbBg(item.course?.category)">
-              <img :src="getThumbSrc(item.course)" :alt="item.course?.title" />
-            </div>
-
-            <div class="enroll-info">
-              <span class="badge" :class="getBadge(item.course?.category)">
-                {{ item.course?.category }}
-              </span>
-              <h3 class="enroll-title">{{ item.course?.title }}</h3>
-              <p class="enroll-instructor">강사: {{ item.course?.instructorName }}</p>
-            </div>
-
-            <div class="enroll-status">
-              <span
-                :class="[
-                  'status-badge',
-                  item.status === 'ACTIVE' ? 'status-active' : 'status-pending'
-                ]"
-              >
-                {{ item.status === 'ACTIVE' ? '수강 중' : '대기 중' }}
-              </span>
-              <router-link :to="`/courses/${item.courseId}`" class="btn btn-ghost btn-sm">
-                강의 보기
+    <section v-else-if="visibleItems.length" class="table-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>교육 프로그램</th>
+            <th>교육 분야</th>
+            <th>일정/방식</th>
+            <th>비용</th>
+            <th>상태</th>
+            <th>작업</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in visibleItems" :key="item.id">
+            <td>
+              <router-link :to="`/courses/${item.courseId}`" class="table-title-link">
+                {{ item.course?.title || `Program #${item.courseId}` }}
               </router-link>
-            </div>
-          </div>
-        </div>
+              <small>Contract #{{ item.id }}</small>
+            </td>
+            <td>{{ item.course?.category || '-' }}</td>
+            <td>
+              {{ formatSchedule(item.course?.startDate, item.course?.endDate) }}
+              <small>{{ formatDuration(item.course?.durationDays) }} · {{ deliveryTypeLabel(item.course?.deliveryType) }}</small>
+            </td>
+            <td>{{ formatPrice(item.course?.price) }}</td>
+            <td><span class="status-badge" :class="item.status === 'ACTIVE' ? 'active' : 'pending'">{{ statusLabel(item.status) }}</span></td>
+            <td>
+              <router-link :to="`/courses/${item.courseId}`" class="text-link">상세</router-link>
+              <router-link v-if="item.status === 'ACTIVE'" :to="`/surveys?courseId=${item.courseId}`" class="text-link">만족도 결과</router-link>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
-        <div v-else class="empty-state">
-          <p class="empty-icon">📭</p>
-          <p>수강 중인 강의가 없습니다.</p>
-          <router-link to="/courses" class="btn btn-primary" style="margin-top:16px;">
-            강의 둘러보기
-          </router-link>
-        </div>
-      </main>
-    </div>
-  </div>
+    <section v-else class="empty-panel">
+      <h2>{{ isTrainingPage ? '진행 중인 교육이 없습니다.' : '아직 신청한 교육이 없습니다.' }}</h2>
+      <p>{{ isTrainingPage ? '교육 계약이 확정되면 이곳에서 진행 중인 교육으로 확인할 수 있습니다.' : '카탈로그에서 기업 니즈에 맞는 교육을 찾아 계약을 신청해 보세요.' }}</p>
+      <router-link to="/courses" class="btn btn-primary">Program Catalog</router-link>
+    </section>
+  </HrdLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import AppHeader from '@/components/AppHeader.vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import HrdLayout from '@/components/HrdLayout.vue'
 import { enrollmentApi } from '@/api/enrollment.js'
-import { useAuthStore } from '@/store/auth.js'
+import { deliveryTypeLabel, formatDuration, formatPrice, formatSchedule, statusLabel } from '@/utils/hrd.js'
 
-const router = useRouter()
-const auth = useAuthStore()
-
-const enrollments = ref([])
 const loading = ref(true)
+const items = ref([])
+const route = useRoute()
 
-const isInstructor = computed(() => auth.user?.role === 'INSTRUCTOR')
-
-const categoryConfig = {
-  '백엔드': { bg: 'thumb-teal', badge: 'badge-teal', thumb: 'spring_boot' },
-  '프론트엔드': { bg: 'thumb-teal', badge: 'badge-teal', thumb: 'vue_js' },
-  'DevOps': { bg: 'thumb-blue', badge: 'badge-blue', thumb: 'kubernetes' },
-  '데이터': { bg: 'thumb-purple', badge: 'badge-purple', thumb: 'python' },
-  'AI': { bg: 'thumb-pink', badge: 'badge-pink', thumb: 'generative_ai' },
-}
-
-function getThumbBg(cat) {
-  return categoryConfig[cat]?.bg || 'thumb-gray'
-}
-
-function getBadge(cat) {
-  return categoryConfig[cat]?.badge || 'badge-gray'
-}
-
-function getThumbSrc(course) {
-  const key = course?.thumbnail || categoryConfig[course?.category]?.thumb
-  if (!key) return ''
-  try {
-    return new URL(`../assets/images/courses/${key}.png`, import.meta.url).href
-  } catch {
-    return ''
-  }
-}
-
-function handleLogout() {
-  auth.logout()
-  router.push('/')
-}
+const isTrainingPage = computed(() => route.path === '/trainings')
+const visibleItems = computed(() => {
+  if (!isTrainingPage.value) return items.value
+  return items.value.filter(item => item.status === 'ACTIVE')
+})
 
 onMounted(async () => {
-  // 강사는 이 페이지 접근 불가 → 마이페이지로 이동
-  if (isInstructor.value) {
-    console.warn('[EnrollmentView] instructor tried to access /enrollments, redirect to /mypage')
-    router.replace('/mypage')
-    return
-  }
-
   try {
     const res = await enrollmentApi.getMyEnrollments()
-    console.log('[EnrollmentView] my enrollments response:', res.data)
-
-    if (Array.isArray(res.data?.data)) {
-      enrollments.value = res.data.data
-    } else if (Array.isArray(res.data)) {
-      enrollments.value = res.data
-    } else {
-      enrollments.value = []
-    }
-  } catch (error) {
-    console.error('[EnrollmentView] failed to load enrollments:', error)
-    enrollments.value = []
+    items.value = Array.isArray(res.data?.data) ? res.data.data : []
   } finally {
     loading.value = false
   }
 })
 </script>
-
-<style scoped>
-.page-wrapper {
-  min-height: 100vh;
-  background: var(--color-bg-secondary);
-}
-
-.page-layout {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 32px 24px;
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 28px;
-}
-
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sidebar-section {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 8px;
-}
-
-.sidebar-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
-  padding: 8px 12px 4px;
-}
-
-.sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  transition: var(--transition);
-  background: none;
-  border: none;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  font-family: var(--font-sans);
-  text-decoration: none;
-}
-
-.sidebar-item:hover {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-}
-
-.sidebar-item.active {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  font-weight: 500;
-}
-
-.si-icon {
-  font-size: 15px;
-}
-
-.main-content {
-  min-width: 0;
-}
-
-.page-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 24px;
-}
-
-.enrollment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.enrollment-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  transition: var(--transition);
-}
-
-.enrollment-card:hover {
-  box-shadow: var(--shadow-sm);
-}
-
-.enroll-thumb {
-  width: 72px;
-  height: 72px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.enroll-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 8px;
-}
-
-.thumb-teal {
-  background: #E1F5EE;
-}
-
-.thumb-blue {
-  background: #E6F1FB;
-}
-
-.thumb-purple {
-  background: #EEEDFE;
-}
-
-.thumb-pink {
-  background: #FBEAF0;
-}
-
-.thumb-gray {
-  background: #F1EFE8;
-}
-
-.enroll-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.enroll-title {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.enroll-instructor {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.enroll-status {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-active {
-  background: #E1F5EE;
-  color: #0F6E56;
-}
-
-.status-pending {
-  background: #FAEEDA;
-  color: #854F0B;
-}
-
-.btn-sm {
-  padding: 7px 14px;
-  font-size: 13px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 80px 0;
-  color: var(--color-text-muted);
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-
-.loading-center {
-  display: flex;
-  justify-content: center;
-  padding: 80px 0;
-}
-
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid var(--color-border);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-</style>

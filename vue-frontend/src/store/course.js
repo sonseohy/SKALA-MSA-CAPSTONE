@@ -9,15 +9,19 @@ export const useCourseStore = defineStore('course', () => {
   const error = ref(null)
   const selectedCategory = ref('전체')
 
-  const categories = ['전체', '백엔드', '프론트엔드', 'DevOps', '데이터', 'AI']
+  const categories = ['전체', 'Backend / MSA', 'Frontend Experience', 'Cloud / DevOps', 'AI / Data', 'Security', 'Database']
 
   // 백엔드 카테고리 → 프론트 표시용 카테고리
   const categoryLabelMap = {
     BACKEND: '백엔드',
     FRONTEND: '프론트엔드',
     DEVOPS: 'DevOps',
+    DATA_SCIENCE: 'AI',
     DATA: '데이터',
-    AI: 'AI'
+    AI: 'AI',
+    SECURITY: '보안',
+    DATABASE: '데이터베이스',
+    OTHER: '기타'
   }
 
   // 썸네일 이미지 매핑

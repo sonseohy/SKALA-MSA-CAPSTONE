@@ -3,10 +3,12 @@ package com.lecture.course.dto;
 import com.lecture.course.entity.Course;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -30,6 +32,21 @@ public class CourseDto {
         @NotNull(message = "가격은 필수입니다")
         @PositiveOrZero(message = "가격은 0 이상이어야 합니다")
         private BigDecimal price;
+
+        @Positive(message = "교육 기간은 1일 이상이어야 합니다")
+        private Integer durationDays;
+
+        private LocalDate startDate;
+
+        private LocalDate endDate;
+
+        private Course.DeliveryType deliveryType;
+
+        private String targetAudience;
+
+        private String region;
+
+        private Course.Difficulty difficulty;
     }
 
     // 강의 응답
@@ -43,6 +60,13 @@ public class CourseDto {
         private String description;
         private Course.Category category;
         private BigDecimal price;
+        private Integer durationDays;
+        private LocalDate startDate;
+        private LocalDate endDate;
+        private Course.DeliveryType deliveryType;
+        private String targetAudience;
+        private String region;
+        private Course.Difficulty difficulty;
         private Long instructorId;
         private Integer enrollmentCount;
         private Course.Status status;
@@ -55,6 +79,13 @@ public class CourseDto {
                     .description(course.getDescription())
                     .category(course.getCategory())
                     .price(course.getPrice())
+                    .durationDays(course.getDurationDays())
+                    .startDate(course.getStartDate())
+                    .endDate(course.getEndDate())
+                    .deliveryType(course.getDeliveryType())
+                    .targetAudience(course.getTargetAudience())
+                    .region(course.getRegion())
+                    .difficulty(course.getDifficulty())
                     .instructorId(course.getInstructorId())
                     .enrollmentCount(course.getEnrollmentCount())
                     .status(course.getStatus())

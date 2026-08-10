@@ -3,6 +3,9 @@ import { ref, computed } from 'vue'
 import { authApi } from '@/api/auth.js'
 
 const AUTH_SERVER_URL = import.meta.env.VITE_AUTH_SERVER_URL || 'http://localhost:8080'
+const DEFAULT_CLIENT_ID = 'web-client'
+const DEFAULT_REDIRECT_URI =
+  typeof window !== 'undefined' ? `${window.location.origin}/callback` : 'http://localhost:3000/callback'
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref(sessionStorage.getItem('access_token') || null)
@@ -54,8 +57,8 @@ export const useAuthStore = defineStore('auth', () => {
   function redirectToLogin() {
     const params = new URLSearchParams({
       response_type: 'code',
-      client_id: import.meta.env.VITE_CLIENT_ID,
-      redirect_uri: import.meta.env.VITE_REDIRECT_URI,
+      client_id: import.meta.env.VITE_CLIENT_ID || DEFAULT_CLIENT_ID,
+      redirect_uri: import.meta.env.VITE_REDIRECT_URI || DEFAULT_REDIRECT_URI,
       scope: 'openid profile read write'
     })
 
