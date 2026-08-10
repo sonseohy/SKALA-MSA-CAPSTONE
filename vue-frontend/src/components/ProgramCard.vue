@@ -7,6 +7,7 @@
     <h3>{{ course.title }}</h3>
     <p>{{ description }}</p>
     <div class="program-badges">
+      <span>{{ normalized.scheduleLabel }}</span>
       <span>{{ normalized.durationLabel }}</span>
       <span>{{ normalized.deliveryTypeLabel }}</span>
       <span>{{ normalized.difficultyLabel }}</span>

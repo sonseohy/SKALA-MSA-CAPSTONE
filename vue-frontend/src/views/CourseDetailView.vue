@@ -25,6 +25,7 @@
           <div class="info-grid">
             <div><span>교육 분야</span><strong>{{ normalized.categoryLabel }}</strong></div>
             <div><span>교육 공급자</span><strong>{{ normalized.providerName }}</strong></div>
+            <div><span>교육 일정</span><strong>{{ normalized.scheduleLabel }}</strong></div>
             <div><span>교육 기간</span><strong>{{ normalized.durationLabel }}</strong></div>
             <div><span>교육 방식</span><strong>{{ normalized.deliveryTypeLabel }}</strong></div>
             <div><span>교육 대상</span><strong>{{ course.targetAudience || '협의' }}</strong></div>

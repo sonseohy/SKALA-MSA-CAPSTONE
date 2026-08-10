@@ -8,6 +8,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -35,6 +36,10 @@ public class CourseDto {
         @Positive(message = "교육 기간은 1일 이상이어야 합니다")
         private Integer durationDays;
 
+        private LocalDate startDate;
+
+        private LocalDate endDate;
+
         private Course.DeliveryType deliveryType;
 
         private String targetAudience;
@@ -56,6 +61,8 @@ public class CourseDto {
         private Course.Category category;
         private BigDecimal price;
         private Integer durationDays;
+        private LocalDate startDate;
+        private LocalDate endDate;
         private Course.DeliveryType deliveryType;
         private String targetAudience;
         private String region;
@@ -73,6 +80,8 @@ public class CourseDto {
                     .category(course.getCategory())
                     .price(course.getPrice())
                     .durationDays(course.getDurationDays())
+                    .startDate(course.getStartDate())
+                    .endDate(course.getEndDate())
                     .deliveryType(course.getDeliveryType())
                     .targetAudience(course.getTargetAudience())
                     .region(course.getRegion())

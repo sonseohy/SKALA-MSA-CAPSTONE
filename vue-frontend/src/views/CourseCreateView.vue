@@ -36,6 +36,14 @@
           <input id="durationDays" v-model.number="form.durationDays" type="number" min="1" placeholder="3" />
         </div>
         <div class="form-row">
+          <label for="startDate">교육 시작일</label>
+          <input id="startDate" v-model="form.startDate" type="date" />
+        </div>
+        <div class="form-row">
+          <label for="endDate">교육 종료일</label>
+          <input id="endDate" v-model="form.endDate" type="date" />
+        </div>
+        <div class="form-row">
           <label for="difficulty">교육 난이도</label>
           <select id="difficulty" v-model="form.difficulty">
             <option v-for="option in difficultyOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
@@ -89,6 +97,8 @@ const form = reactive({
   category: '',
   price: null,
   durationDays: null,
+  startDate: '',
+  endDate: '',
   deliveryType: 'TBD',
   targetAudience: '',
   region: '',
@@ -117,13 +127,20 @@ async function handleSubmit() {
     hasError.value = true
     return
   }
+  if (form.startDate && form.endDate && form.endDate < form.startDate) {
+    message.value = '교육 종료일은 시작일 이후로 입력해 주세요.'
+    hasError.value = true
+    return
+  }
 
   submitting.value = true
   try {
     await courseApi.create({
       ...form,
       price: Number(form.price),
-      durationDays: form.durationDays ? Number(form.durationDays) : null
+      durationDays: form.durationDays ? Number(form.durationDays) : null,
+      startDate: form.startDate || null,
+      endDate: form.endDate || null
     })
     message.value = '교육 프로그램이 등록되었습니다.'
     setTimeout(() => router.push('/courses'), 600)

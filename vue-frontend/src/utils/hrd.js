@@ -39,7 +39,8 @@ export function normalizeCourse(course) {
     providerName: course.instructorName || course.teacherName || course.providerName || `Provider #${course.instructorId ?? '-'}`,
     deliveryTypeLabel: deliveryTypeLabel(course.deliveryType),
     difficultyLabel: difficultyLabel(course.difficulty),
-    durationLabel: formatDuration(course.durationDays)
+    durationLabel: formatDuration(course.durationDays),
+    scheduleLabel: formatSchedule(course.startDate, course.endDate)
   }
 }
 
@@ -66,6 +67,26 @@ export function formatDuration(days) {
   const value = Number(days)
   if (!Number.isFinite(value) || value <= 0) return '협의'
   return `${value}일`
+}
+
+export function formatDate(date) {
+  if (!date) return ''
+  const value = new Date(date)
+  if (Number.isNaN(value.getTime())) return String(date)
+  return value.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).replace(/\. /g, '.').replace(/\.$/, '')
+}
+
+export function formatSchedule(startDate, endDate) {
+  const start = formatDate(startDate)
+  const end = formatDate(endDate)
+  if (start && end) return `${start} - ${end}`
+  if (start) return `${start} 시작`
+  if (end) return `${end} 종료`
+  return '일정 협의'
 }
 
 export function deliveryTypeLabel(value) {

@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS courses (
     category         VARCHAR(50)     NOT NULL COMMENT 'BACKEND|FRONTEND|DEVOPS|DATA_SCIENCE|MOBILE|SECURITY|DATABASE|OTHER',
     price            DECIMAL(10,2)   NOT NULL,
     duration_days    INT             NULL COMMENT '교육 기간(일)',
+    start_date       DATE            NULL COMMENT '교육 시작일',
+    end_date         DATE            NULL COMMENT '교육 종료일',
     delivery_type    VARCHAR(20)     DEFAULT 'TBD' COMMENT 'ONLINE | OFFLINE | HYBRID | TBD',
     target_audience  VARCHAR(255)    NULL COMMENT '교육 대상 직무/대상자',
     region           VARCHAR(100)    NULL COMMENT '교육 가능 지역',

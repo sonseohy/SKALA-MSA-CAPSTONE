@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,12 +23,16 @@ public class CourseService {
      */
     @Transactional
     public CourseDto.CourseResponse createCourse(CourseDto.CreateRequest request, Long instructorId) {
+        validateSchedule(request);
+
         Course course = Course.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .category(request.getCategory())
                 .price(request.getPrice())
-                .durationDays(request.getDurationDays())
+                .durationDays(resolveDurationDays(request))
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
                 .deliveryType(request.getDeliveryType() != null ? request.getDeliveryType() : Course.DeliveryType.TBD)
                 .targetAudience(request.getTargetAudience())
                 .region(request.getRegion())
@@ -102,5 +107,25 @@ public class CourseService {
     private Course findCourseById(Long id) {
         return courseRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("강의를 찾을 수 없습니다: " + id));
+    }
+
+    private void validateSchedule(CourseDto.CreateRequest request) {
+        if (request.getStartDate() != null
+                && request.getEndDate() != null
+                && request.getEndDate().isBefore(request.getStartDate())) {
+            throw new IllegalArgumentException("교육 종료일은 시작일 이후여야 합니다");
+        }
+    }
+
+    private Integer resolveDurationDays(CourseDto.CreateRequest request) {
+        if (request.getDurationDays() != null) {
+            return request.getDurationDays();
+        }
+
+        if (request.getStartDate() != null && request.getEndDate() != null) {
+            return Math.toIntExact(ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate()) + 1);
+        }
+
+        return null;
     }
 }

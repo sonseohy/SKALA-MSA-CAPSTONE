@@ -98,6 +98,18 @@ public class EnrollmentService {
                                             courseInfo.get("duration_days")
                                     )
                             ))
+                            .startDate(toStringValue(
+                                    firstNonNullObject(
+                                            courseInfo.get("startDate"),
+                                            courseInfo.get("start_date")
+                                    )
+                            ))
+                            .endDate(toStringValue(
+                                    firstNonNullObject(
+                                            courseInfo.get("endDate"),
+                                            courseInfo.get("end_date")
+                                    )
+                            ))
                             .deliveryType(toStringValue(
                                     firstNonNullObject(
                                             courseInfo.get("deliveryType"),

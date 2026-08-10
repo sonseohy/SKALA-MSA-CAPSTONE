@@ -31,6 +31,8 @@ public class EnrollmentDto {
         private String category;
         private Integer price;
         private Integer durationDays;
+        private String startDate;
+        private String endDate;
         private String deliveryType;
         private String targetAudience;
         private String region;
