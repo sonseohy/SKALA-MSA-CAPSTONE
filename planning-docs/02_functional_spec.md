@@ -7,7 +7,7 @@
 - 기존 테이블은 가능하면 유지하고, 화면과 DTO 문구를 HRD 도메인으로 재해석한다.
 - 결제는 실제 PG 연동을 만들지 않고 현재 `payment-service`의 자동 성공 결제를 사용한다.
 - AI 추천은 현재 recommend-service 기반 추천을 사용한다.
-- 만족도 조사만 MVP 확장 기능으로 다룬다. 교육 결과 분석은 발표/기획서에서 향후 개발 예정으로 정리한다.
+- 만족도는 MVP에서 HRD 담당자용 결과 조회 화면으로 다룬다. 실제 만족도 제출 API와 교육 결과 분석은 향후 개발 예정으로 정리한다.
 
 ## 2. 사용자 유형
 
@@ -15,9 +15,9 @@
 |---|---|---|---|
 | HRD 담당자 | STUDENT | 기업 교육을 탐색/계약하는 담당자 | 교육 니즈 입력, 추천 확인, 계약 신청, 내 교육 확인 |
 | 교육 공급자 | INSTRUCTOR | 강사 또는 교육기관 | 교육 프로그램 등록, 공급자 프로필성 정보 노출 |
-| 기업 임직원 | STUDENT | 교육 참여자 | 개설 교육 참여, 만족도 조사 |
+| 기업 임직원 | STUDENT | 교육 참여자 | 향후 임직원 포털에서 교육 참여, 만족도 제출 |
 
-현재 백엔드 Role은 `STUDENT`, `INSTRUCTOR`만 있으므로 DB enum을 대규모로 바꾸지 않는다. 프론트 화면에서는 `STUDENT`를 HRD 담당자/임직원 맥락으로 표현한다.
+현재 백엔드 Role은 `STUDENT`, `INSTRUCTOR`만 있으므로 DB enum을 대규모로 바꾸지 않는다. 프론트 MVP에서는 `STUDENT`를 HRD 담당자로, `INSTRUCTOR`를 교육 공급자로 표현한다.
 
 ## 3. 기능 목록
 
@@ -51,12 +51,13 @@
 
 현재 활용:
 
-- Vue `LandingView.vue`, `CourseListView.vue`, `MyPageView.vue`
+- Vue `LandingView.vue`, `HrdDashboardView.vue`, `CourseListView.vue`
 
 최소 수정 방향:
 
 - 랜딩 카피를 기업 HRD 가치 중심으로 변경한다.
 - 첫 화면에서 교육 니즈 입력/추천/교육 프로그램 탐색으로 이어지게 만든다.
+- 로그인 후 역할에 따라 메뉴와 대시보드 CTA를 다르게 보여준다.
 - 백엔드 변경 없이 프론트에서 카테고리/문구를 HRD 용어로 매핑한다.
 
 완료 기준:
@@ -88,8 +89,8 @@
 | targetRole | 교육 대상 | 프론트 표시 |
 | preferredCategory | 관심 교육 분야 | 기존 Course Category 매핑 |
 | budget | 예산 | 화면 표시 또는 course price 비교 |
-| deliveryType | 온라인/오프라인 | 향후 필드 |
-| region | 교육 지역 | 향후 필드 |
+| deliveryType | 온라인/오프라인 | Course 필드 |
+| region | 교육 지역 | Course 필드 |
 
 완료 기준:
 
@@ -137,6 +138,7 @@
 - `instructorId`를 교육 공급자 ID로 표현한다.
 - `price`를 예상 교육비/계약 비용으로 표현한다.
 - `enrollmentCount`를 신청/참여 수 또는 관심도 지표로 표현한다.
+- `startDate`, `endDate`, `durationDays`, `deliveryType`, `targetAudience`, `region`, `difficulty`를 교육 비교 정보로 표시한다.
 
 완료 기준:
 
@@ -157,8 +159,8 @@
 최소 수정 방향:
 
 - 등록 화면 문구를 “강의 등록”에서 “기업 교육 프로그램 등록”으로 변경한다.
-- 기존 필드만 우선 사용한다.
-- `description`에 커리큘럼, 경력, 교육 방식, 지역 등을 구조화된 텍스트로 입력하게 한다.
+- 교육 일정, 기간, 방식, 대상, 가능 지역, 난이도를 정식 필드로 입력한다.
+- `description`에는 커리큘럼과 공급자 소개를 입력한다.
 
 완료 기준:
 
@@ -215,22 +217,24 @@
 완료 기준:
 
 - 신청한 교육 목록과 상태가 표시된다.
+- 목록에서 교육명을 클릭하면 교육 상세 화면으로 이동한다.
 
-### F-09. 만족도 조사
+### F-09. 만족도 결과 조회
 
 목적:
 
-- 교육 종료 후 임직원이 만족도 조사를 제출한다.
+- HRD 담당자가 교육별 만족도 결과와 개선 의견을 확인한다.
 
 현재 활용:
 
 - 현재 백엔드에는 Review/Survey 기능이 없다.
+- 프론트 `SurveyView.vue`에서 시연용 교육별 결과 데이터를 표시한다.
 
 최소 수정 방향:
 
-- Sprint 2 후보로 둔다.
-- 가장 작은 구현은 `survey-service` 신설보다 기존 서비스 중 하나에 단순 테이블/API를 추가하는 방식이다.
-- 추천안은 `enrollment-service`에 `surveys` 테이블과 API를 추가하는 것이다. 교육 참여와 직접 연결되기 때문이다.
+- MVP에서는 HRD 담당자용 결과 조회 화면까지만 구현한다.
+- 실제 만족도 제출/저장은 Sprint 2 이후 후보로 둔다.
+- 백엔드 구현이 필요하면 `survey-service` 신설보다 `enrollment-service`에 단순 테이블/API를 추가한다.
 
 권장 최소 테이블:
 
@@ -249,16 +253,16 @@ surveys (
 )
 ```
 
-권장 API:
+향후 권장 API:
 
 - `POST /api/enrollments/{enrollmentId}/survey`
 - `GET /api/enrollments/{enrollmentId}/survey`
 - `GET /api/enrollments/courses/{courseId}/surveys/summary`
 
-완료 기준:
+MVP 완료 기준:
 
-- 교육별 만족도 제출이 가능하다.
-- HRD 담당자가 평균 만족도를 볼 수 있다.
+- HRD 담당자가 교육별 응답률/평균 점수/주요 의견/후속 조치를 볼 수 있다.
+- 진행 중인 교육/계약 목록에서 만족도 결과 화면으로 이동할 수 있다.
 
 ## 4. 이번 MVP에서 하지 않는 것
 

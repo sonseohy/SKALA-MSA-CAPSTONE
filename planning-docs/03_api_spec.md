@@ -139,11 +139,36 @@ Request:
 ```json
 {
   "title": "생성형 AI 업무 활용 교육",
-  "description": "대상: 사무직/기획자\n방식: 온라인/오프라인 가능\n커리큘럼: 프롬프트 작성, 업무 자동화, 보안 주의사항\n공급자 경력: 기업 AI 교육 20회",
+  "description": "커리큘럼: 프롬프트 작성, 업무 자동화, 보안 주의사항\n공급자 경력: 기업 AI 교육 20회",
   "category": "DATA_SCIENCE",
-  "price": 99000
+  "price": 99000,
+  "durationDays": 3,
+  "startDate": "2026-08-12",
+  "endDate": "2026-08-14",
+  "deliveryType": "HYBRID",
+  "targetAudience": "기획자, 백오피스 실무자",
+  "region": "서울, 온라인",
+  "difficulty": "INTERMEDIATE"
 }
 ```
+
+Course 운영 필드:
+
+| 필드 | 타입 | 설명 | 필수 여부 |
+|---|---|---|---|
+| `durationDays` | number | 교육 기간(일) | 선택 |
+| `startDate` | string, `YYYY-MM-DD` | 교육 시작일 | 선택 |
+| `endDate` | string, `YYYY-MM-DD` | 교육 종료일 | 선택 |
+| `deliveryType` | enum | `ONLINE`, `OFFLINE`, `HYBRID`, `TBD` | 선택 |
+| `targetAudience` | string | 교육 대상 직무/대상자 | 선택 |
+| `region` | string | 교육 가능 지역 | 선택 |
+| `difficulty` | enum | `BASIC`, `INTERMEDIATE`, `ADVANCED`, `AUTO` | 선택 |
+
+백엔드 처리:
+
+- `startDate`, `endDate`는 nullable이다.
+- 종료일이 시작일보다 빠르면 등록을 막는다.
+- `durationDays`가 비어 있고 시작일/종료일이 있으면 백엔드에서 자동 계산한다.
 
 현재 Category enum:
 
@@ -176,6 +201,13 @@ Response:
     "description": "대상: 사무직/기획자...",
     "category": "DATA_SCIENCE",
     "price": 99000,
+    "durationDays": 3,
+    "startDate": "2026-08-12",
+    "endDate": "2026-08-14",
+    "deliveryType": "HYBRID",
+    "targetAudience": "기획자, 백오피스 실무자",
+    "region": "서울, 온라인",
+    "difficulty": "INTERMEDIATE",
     "instructorId": 2,
     "enrollmentCount": 0,
     "status": "ACTIVE",
@@ -203,6 +235,13 @@ Response:
       "description": "대상: 사무직/기획자...",
       "category": "DATA_SCIENCE",
       "price": 99000,
+      "durationDays": 3,
+      "startDate": "2026-08-12",
+      "endDate": "2026-08-14",
+      "deliveryType": "HYBRID",
+      "targetAudience": "기획자, 백오피스 실무자",
+      "region": "서울, 온라인",
+      "difficulty": "INTERMEDIATE",
       "instructorId": 2,
       "enrollmentCount": 12,
       "status": "ACTIVE",
@@ -304,6 +343,13 @@ Response:
         "description": "대상: 사무직/기획자...",
         "category": "AI/Data",
         "price": 99000,
+        "durationDays": 3,
+        "startDate": "2026-08-12",
+        "endDate": "2026-08-14",
+        "deliveryType": "HYBRID",
+        "targetAudience": "기획자, 백오피스 실무자",
+        "region": "서울, 온라인",
+        "difficulty": "INTERMEDIATE",
         "thumbnail": null,
         "instructorName": null,
         "enrollmentCount": 12
@@ -413,9 +459,11 @@ http://localhost:8085/docs
 
 ## 9. Sprint 2 후보 API: 만족도 조사
 
-현재 구현되어 있지 않으므로 신규 구현 후보이다. 최소 변경 원칙상 `enrollment-service`에 추가하는 방향을 권장한다.
+현재 백엔드에는 구현되어 있지 않으므로 신규 구현 후보이다. 현재 프론트 MVP는 `SurveyView.vue`에서 HRD 담당자용 교육별 만족도 결과 화면을 시연용 데이터로 제공한다.
 
-### 만족도 제출
+실제 저장/조회 API를 구현한다면 최소 변경 원칙상 `enrollment-service`에 추가하는 방향을 권장한다.
+
+### 향후 만족도 제출
 
 ```http
 POST /api/enrollments/{enrollmentId}/survey
