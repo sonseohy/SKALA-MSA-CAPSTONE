@@ -22,12 +22,6 @@
         </router-link>
       </nav>
 
-      <div class="hrd-sidebar-footer">
-        <router-link to="/mypage" class="hrd-nav-item" :class="{ active: $route.path === '/mypage' }">
-          <span class="hrd-nav-icon">MP</span>
-          <span>My Page</span>
-        </router-link>
-      </div>
     </aside>
 
     <div class="hrd-main-wrap">
@@ -39,9 +33,9 @@
             <input type="search" :placeholder="searchPlaceholder" />
           </label>
           <span class="hrd-role">{{ currentRole }}</span>
-          <router-link to="/mypage" class="hrd-avatar" :title="auth.user?.name || 'My Page'">
+          <span class="hrd-avatar" :title="auth.user?.name || currentRole">
             {{ initial }}
-          </router-link>
+          </span>
           <button type="button" class="hrd-logout" @click="handleLogout">로그아웃</button>
         </div>
       </header>
