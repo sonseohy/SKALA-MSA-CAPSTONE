@@ -99,8 +99,16 @@ export function statusLabel(status) {
   return labels[status] || status || '대기'
 }
 
+export function isProviderRole(role) {
+  return role === 'INSTRUCTOR'
+}
+
+export function isHrdRole(role) {
+  return !isProviderRole(role)
+}
+
 export function roleLabel(role) {
-  return role === 'INSTRUCTOR' ? '교육 공급자' : 'HRD 담당자'
+  return isProviderRole(role) ? '교육 공급자' : 'HRD 담당자'
 }
 
 export function inferCategoryFromNeeds({ businessPlan = '', targetJob = '', currentSkills = '', desiredSkills = '' }) {

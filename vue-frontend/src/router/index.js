@@ -28,13 +28,13 @@ const routes = [
     path: '/needs',
     name: 'EducationNeeds',
     component: () => import('@/views/EducationNeedsView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, hrdOnly: true }
   },
   {
     path: '/recommendations',
     name: 'RecommendedPrograms',
     component: () => import('@/views/RecommendedProgramsView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, hrdOnly: true }
   },
   {
     path: '/courses',
@@ -64,19 +64,19 @@ const routes = [
     path: '/enrollments',
     name: 'Enrollment',
     component: () => import('@/views/EnrollmentView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, hrdOnly: true }
   },
   {
     path: '/trainings',
     name: 'Trainings',
     component: () => import('@/views/EnrollmentView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, hrdOnly: true }
   },
   {
     path: '/surveys',
     name: 'Survey',
     component: () => import('@/views/SurveyView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, hrdOnly: true }
   },
   {
     path: '/mypage',
@@ -107,6 +107,10 @@ router.beforeEach((to) => {
 
   if (to.meta.instructorOnly && auth.user?.role !== 'INSTRUCTOR') {
     return { name: 'CourseList' }
+  }
+
+  if (to.meta.hrdOnly && auth.user?.role === 'INSTRUCTOR') {
+    return { name: 'HrdDashboard' }
   }
 })
 
