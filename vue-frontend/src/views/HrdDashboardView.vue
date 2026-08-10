@@ -116,7 +116,16 @@ const loadError = ref(false)
 
 const displayName = computed(() => auth.user?.name || '담당자')
 const isProvider = computed(() => isProviderRole(auth.user?.role))
-const previewCourses = computed(() => courses.value.slice(0, 4).map(normalizeCourse))
+
+// 공급자 화면의 지표·할 일·단계는 "본인이 등록한 프로그램"만 세어야 한다.
+// 전체 카탈로그를 쓰면 남이 올린 강의가 본인 실적으로 잡힌다.
+const myCourses = computed(() => (
+  isProvider.value
+    ? courses.value.filter(course => Number(course.instructorId) === Number(auth.user?.id))
+    : courses.value
+))
+
+const previewCourses = computed(() => myCourses.value.slice(0, 4).map(normalizeCourse))
 const activeCount = computed(() => enrollments.value.filter(item => item.status === 'ACTIVE').length)
 const pendingCount = computed(() => enrollments.value.filter(item => item.status === 'PENDING').length)
 
@@ -156,10 +165,10 @@ const planningCard = computed(() => (
 const tasks = computed(() => {
   if (isProvider.value) {
     const list = []
-    if (!courses.value.length) {
+    if (!myCourses.value.length) {
       list.push({ icon: 'CR', title: '첫 프로그램 등록', description: '아직 등록한 교육 프로그램이 없습니다.', due: '', to: '/courses/new', urgent: true })
     }
-    const missingSchedule = courses.value.filter(c => !c.startDate && !c.durationDays).length
+    const missingSchedule = myCourses.value.filter(c => !c.startDate && !c.durationDays).length
     if (missingSchedule) {
       list.push({ icon: 'PC', title: '일정 정보 미입력', description: `${missingSchedule}개 프로그램에 교육 기간·시작일이 없습니다.`, due: '', to: '/courses', urgent: false })
     }
@@ -187,8 +196,8 @@ const hasNeeds = computed(() => !!sessionStorage.getItem('hrd_needs_analysis'))
 const workflowSteps = computed(() => (
   isProvider.value
     ? [
-        { label: '프로그램 등록', done: courses.value.length > 0 },
-        { label: '운영 조건 입력', done: courses.value.some(c => c.startDate || c.durationDays) },
+        { label: '프로그램 등록', done: myCourses.value.length > 0 },
+        { label: '운영 조건 입력', done: myCourses.value.some(c => c.startDate || c.durationDays) },
         { label: '계약 요청 확인', done: false },
         { label: '교육 진행', done: false },
         { label: '만족도 개선', done: false }
@@ -205,12 +214,13 @@ const workflowSteps = computed(() => (
 // 지표는 실제 응답에서만 만든다. 추정치·목표치를 섞지 않는다.
 const metrics = computed(() => {
   const categoryCount = new Set(courses.value.map(c => c.category).filter(Boolean)).size
+  const myCategoryCount = new Set(myCourses.value.map(c => c.category).filter(Boolean)).size
 
   if (isProvider.value) {
     return [
-      { label: '카탈로그 전체 프로그램', value: courses.value.length, note: '공급자 전체 등록분', icon: 'PC', tone: 'positive' },
-      { label: '교육 분야', value: categoryCount, note: '노출 중인 분야 수', icon: 'OP', tone: '' },
-      { label: '일정 미입력', value: courses.value.filter(c => !c.startDate && !c.durationDays).length, note: '보완 필요', icon: 'CT', tone: 'danger-text' },
+      { label: '내 등록 프로그램', value: myCourses.value.length, note: `전체 카탈로그 ${courses.value.length}건 중`, icon: 'PC', tone: 'positive' },
+      { label: '교육 분야', value: myCategoryCount, note: '내가 노출 중인 분야 수', icon: 'OP', tone: '' },
+      { label: '일정 미입력', value: myCourses.value.filter(c => !c.startDate && !c.durationDays).length, note: '보완 필요', icon: 'CT', tone: 'danger-text' },
       { label: '만족도', value: '집계 예정', note: '만족도 API 배포 후 제공', icon: 'ST', tone: '' }
     ]
   }
