@@ -6,6 +6,11 @@
     </div>
     <h3>{{ course.title }}</h3>
     <p>{{ description }}</p>
+    <div class="program-badges">
+      <span>{{ normalized.durationLabel }}</span>
+      <span>{{ normalized.deliveryTypeLabel }}</span>
+      <span>{{ normalized.difficultyLabel }}</span>
+    </div>
     <div class="program-meta">
       <span>{{ normalized.providerName }}</span>
       <strong>{{ formatPrice(course.price) }}</strong>

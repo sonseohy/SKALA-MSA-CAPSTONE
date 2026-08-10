@@ -22,6 +22,11 @@ class CourseResponse(BaseModel):
     description: Optional[str] = None
     category: CourseCategory
     price: Decimal
+    durationDays: Optional[int] = None
+    deliveryType: Optional[str] = None
+    targetAudience: Optional[str] = None
+    region: Optional[str] = None
+    difficulty: Optional[str] = None
     instructorId: int
     enrollmentCount: int
     status: str

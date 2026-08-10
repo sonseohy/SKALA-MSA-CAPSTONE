@@ -92,6 +92,26 @@ public class EnrollmentService {
                             .description((String) courseInfo.get("description"))
                             .category(normalizeCategory((String) courseInfo.get("category")))
                             .price(toInteger(courseInfo.get("price")))
+                            .durationDays(toInteger(
+                                    firstNonNullObject(
+                                            courseInfo.get("durationDays"),
+                                            courseInfo.get("duration_days")
+                                    )
+                            ))
+                            .deliveryType(toStringValue(
+                                    firstNonNullObject(
+                                            courseInfo.get("deliveryType"),
+                                            courseInfo.get("delivery_type")
+                                    )
+                            ))
+                            .targetAudience(toStringValue(
+                                    firstNonNullObject(
+                                            courseInfo.get("targetAudience"),
+                                            courseInfo.get("target_audience")
+                                    )
+                            ))
+                            .region(toStringValue(courseInfo.get("region")))
+                            .difficulty(toStringValue(courseInfo.get("difficulty")))
                             .thumbnail((String) courseInfo.get("thumbnail"))
                             .instructorName(
                                     firstNonNull(
@@ -152,6 +172,10 @@ public class EnrollmentService {
         if (value == null) return null;
         if (value instanceof Number number) return number.intValue();
         return Integer.parseInt(value.toString());
+    }
+
+    private String toStringValue(Object value) {
+        return value == null ? null : value.toString();
     }
 
     private String firstNonNull(String... values) {

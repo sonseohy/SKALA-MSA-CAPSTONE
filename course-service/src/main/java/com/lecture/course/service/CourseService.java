@@ -27,6 +27,11 @@ public class CourseService {
                 .description(request.getDescription())
                 .category(request.getCategory())
                 .price(request.getPrice())
+                .durationDays(request.getDurationDays())
+                .deliveryType(request.getDeliveryType() != null ? request.getDeliveryType() : Course.DeliveryType.TBD)
+                .targetAudience(request.getTargetAudience())
+                .region(request.getRegion())
+                .difficulty(request.getDifficulty() != null ? request.getDifficulty() : Course.Difficulty.AUTO)
                 .instructorId(instructorId)
                 .build();
 

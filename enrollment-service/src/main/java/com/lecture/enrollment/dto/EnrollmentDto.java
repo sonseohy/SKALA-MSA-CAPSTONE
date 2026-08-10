@@ -30,6 +30,11 @@ public class EnrollmentDto {
         private String description;
         private String category;
         private Integer price;
+        private Integer durationDays;
+        private String deliveryType;
+        private String targetAudience;
+        private String region;
+        private String difficulty;
         private String thumbnail;
         private String instructorName;
         private Integer enrollmentCount;

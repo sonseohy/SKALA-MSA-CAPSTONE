@@ -27,7 +27,27 @@
         </div>
         <div class="form-row">
           <label for="delivery">교육 방식</label>
-          <input id="delivery" v-model.trim="extra.delivery" placeholder="온라인/오프라인 병행" />
+          <select id="delivery" v-model="form.deliveryType">
+            <option v-for="option in deliveryTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="durationDays">교육 기간</label>
+          <input id="durationDays" v-model.number="form.durationDays" type="number" min="1" placeholder="3" />
+        </div>
+        <div class="form-row">
+          <label for="difficulty">교육 난이도</label>
+          <select id="difficulty" v-model="form.difficulty">
+            <option v-for="option in difficultyOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="targetAudience">교육 대상</label>
+          <input id="targetAudience" v-model.trim="form.targetAudience" placeholder="백엔드 개발자, DevOps 엔지니어" />
+        </div>
+        <div class="form-row">
+          <label for="region">교육 가능 지역</label>
+          <input id="region" v-model.trim="form.region" placeholder="서울, 온라인" />
         </div>
       </div>
 
@@ -67,10 +87,27 @@ const form = reactive({
   title: '',
   description: '',
   category: '',
-  price: null
+  price: null,
+  durationDays: null,
+  deliveryType: 'TBD',
+  targetAudience: '',
+  region: '',
+  difficulty: 'AUTO'
 })
 
-const extra = reactive({ delivery: '' })
+const deliveryTypeOptions = [
+  { value: 'TBD', label: '협의' },
+  { value: 'ONLINE', label: '온라인' },
+  { value: 'OFFLINE', label: '오프라인' },
+  { value: 'HYBRID', label: '온/오프라인 병행' }
+]
+
+const difficultyOptions = [
+  { value: 'AUTO', label: '자동 선택' },
+  { value: 'BASIC', label: '기초' },
+  { value: 'INTERMEDIATE', label: '중급' },
+  { value: 'ADVANCED', label: '고급' }
+]
 
 async function handleSubmit() {
   message.value = ''
@@ -83,8 +120,11 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    const description = [form.description, extra.delivery && `교육 방식: ${extra.delivery}`].filter(Boolean).join('\n')
-    await courseApi.create({ ...form, description, price: Number(form.price) })
+    await courseApi.create({
+      ...form,
+      price: Number(form.price),
+      durationDays: form.durationDays ? Number(form.durationDays) : null
+    })
     message.value = '교육 프로그램이 등록되었습니다.'
     setTimeout(() => router.push('/courses'), 600)
   } catch (error) {

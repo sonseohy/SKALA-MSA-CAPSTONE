@@ -35,6 +35,25 @@ public class Course {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "duration_days")
+    private Integer durationDays;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_type", length = 20)
+    @Builder.Default
+    private DeliveryType deliveryType = DeliveryType.TBD;
+
+    @Column(name = "target_audience")
+    private String targetAudience;
+
+    @Column(length = 100)
+    private String region;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    @Builder.Default
+    private Difficulty difficulty = Difficulty.AUTO;
+
     // 강사 ID (users 테이블 참조 - 직접 JOIN 없이 ID만 보관)
     @Column(nullable = false)
     private Long instructorId;
@@ -58,6 +77,14 @@ public class Course {
 
     public enum Category {
         BACKEND, FRONTEND, DEVOPS, DATA_SCIENCE, MOBILE, SECURITY, DATABASE, OTHER
+    }
+
+    public enum DeliveryType {
+        ONLINE, OFFLINE, HYBRID, TBD
+    }
+
+    public enum Difficulty {
+        BASIC, INTERMEDIATE, ADVANCED, AUTO
     }
 
     public enum Status {

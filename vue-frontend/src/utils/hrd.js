@@ -36,7 +36,10 @@ export function normalizeCourse(course) {
     ...course,
     categoryLabel: normalizeCategory(course.category),
     categoryShort: categoryShortMap[course.category] || categoryShortMap[course.categoryLabel] || 'Edu',
-    providerName: course.instructorName || course.teacherName || course.providerName || `Provider #${course.instructorId ?? '-'}`
+    providerName: course.instructorName || course.teacherName || course.providerName || `Provider #${course.instructorId ?? '-'}`,
+    deliveryTypeLabel: deliveryTypeLabel(course.deliveryType),
+    difficultyLabel: difficultyLabel(course.difficulty),
+    durationLabel: formatDuration(course.durationDays)
   }
 }
 
@@ -57,6 +60,32 @@ export function formatPrice(price) {
   const value = Number(price ?? 0)
   if (Number.isNaN(value)) return '-'
   return `${value.toLocaleString()}원`
+}
+
+export function formatDuration(days) {
+  const value = Number(days)
+  if (!Number.isFinite(value) || value <= 0) return '협의'
+  return `${value}일`
+}
+
+export function deliveryTypeLabel(value) {
+  const labels = {
+    ONLINE: '온라인',
+    OFFLINE: '오프라인',
+    HYBRID: '온/오프라인 병행',
+    TBD: '협의'
+  }
+  return labels[value] || value || '협의'
+}
+
+export function difficultyLabel(value) {
+  const labels = {
+    BASIC: '기초',
+    INTERMEDIATE: '중급',
+    ADVANCED: '고급',
+    AUTO: '자동 선택'
+  }
+  return labels[value] || value || '자동 선택'
 }
 
 export function statusLabel(status) {

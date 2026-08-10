@@ -17,6 +17,7 @@
           <tr>
             <th>교육 프로그램</th>
             <th>교육 분야</th>
+            <th>기간/방식</th>
             <th>비용</th>
             <th>상태</th>
             <th>작업</th>
@@ -29,6 +30,10 @@
               <small>Contract #{{ item.id }}</small>
             </td>
             <td>{{ item.course?.category || '-' }}</td>
+            <td>
+              {{ formatDuration(item.course?.durationDays) }}
+              <small>{{ deliveryTypeLabel(item.course?.deliveryType) }}</small>
+            </td>
             <td>{{ formatPrice(item.course?.price) }}</td>
             <td><span class="status-badge" :class="item.status === 'ACTIVE' ? 'active' : 'pending'">{{ statusLabel(item.status) }}</span></td>
             <td>
@@ -53,7 +58,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import HrdLayout from '@/components/HrdLayout.vue'
 import { enrollmentApi } from '@/api/enrollment.js'
-import { formatPrice, statusLabel } from '@/utils/hrd.js'
+import { deliveryTypeLabel, formatDuration, formatPrice, statusLabel } from '@/utils/hrd.js'
 
 const loading = ref(true)
 const items = ref([])
