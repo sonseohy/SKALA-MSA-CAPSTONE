@@ -6,7 +6,6 @@
         <h1>사업계획과 교육 조건 입력</h1>
         <p>외부 AI 없이도 키워드와 역량 사전을 이용해 교육 분야를 추천합니다.</p>
       </div>
-      <span class="pill success">ACTIVE</span>
     </section>
 
     <section class="workflow-tabs">
@@ -26,7 +25,7 @@
           rows="7"
           placeholder="예: 2027년 생성형 AI 기반 고객지원 자동화와 클라우드 네이티브 전환을 추진한다. 개발 조직의 AI 활용, 데이터 보안, Kubernetes 운영 역량을 강화한다."
         />
-        <small>PDF 한글 문서는 텍스트를 복사해 넣거나, TXT/MD 파일을 불러온 것처럼 시연할 수 있습니다.</small>
+        <small>사업계획서나 조직 역량 진단 내용을 붙여 넣으면 키워드에서 교육 분야를 도출합니다.</small>
       </div>
 
       <div class="form-grid">
@@ -51,6 +50,43 @@
             <option value="ADVANCED">심화</option>
           </select>
         </div>
+        <div class="form-row">
+          <label for="budget">1인당 예산 (원)</label>
+          <input id="budget" v-model.number="form.budget" type="number" min="0" placeholder="150000" />
+          <small>입력하면 추천 화면에서 교육비가 예산을 넘는 과정을 표시합니다.</small>
+        </div>
+        <div class="form-row">
+          <label for="deliveryType">희망 교육 방식</label>
+          <select id="deliveryType" v-model="form.deliveryType">
+            <option value="">무관</option>
+            <!-- option 안에 줄바꿈을 넣으면 공백이 내용으로 잡혀 select 높이가 커진다 -->
+            <option v-for="option in deliveryTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="preferredCategory">관심 교육 분야</label>
+          <select id="preferredCategory" v-model="form.preferredCategory">
+            <option value="">키워드로 자동 판단</option>
+            <option v-for="option in categoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="region">희망 교육 지역</label>
+          <!-- 지역은 명세상 자유 문자열이지만, 오타가 나면 카탈로그와 매칭되지 않는다.
+               등록된 지역을 고르게 하고 없는 곳은 직접 입력으로 연다. -->
+          <select id="region" v-model="regionChoice">
+            <option value="">무관</option>
+            <option v-for="region in knownRegions" :key="region" :value="region">{{ region }}</option>
+            <option value="__custom">직접 입력</option>
+          </select>
+          <input
+            v-if="regionChoice === '__custom'"
+            id="regionCustom"
+            v-model.trim="form.region"
+            class="stacked-input"
+            placeholder="예: 대전, 온라인"
+          />
+        </div>
       </div>
 
       <div class="analysis-box" v-if="analysis">
@@ -71,33 +107,75 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, reactive, ref, watch } from 'vue'
 import HrdLayout from '@/components/HrdLayout.vue'
-import { categoryLabelMap, inferCategoryFromNeeds } from '@/utils/hrd.js'
+import { courseApi } from '@/api/course.js'
+import {
+  categoryLabelMap,
+  categoryOptions,
+  unwrapListResponse,
+  deliveryTypeLabel,
+  deliveryTypeOptions,
+  difficultyLabel,
+  formatPrice,
+  inferCategoryFromNeeds
+} from '@/utils/hrd.js'
 
-const router = useRouter()
 const analysis = ref(null)
 
+// 필드 구성은 02_functional_spec.md F-03 "예시 필드" 표를 따른다.
 const form = reactive({
   businessPlan: '',
   targetJob: '',
   currentSkills: '',
   desiredSkills: '',
-  difficulty: 'AUTO'
+  difficulty: 'AUTO',
+  budget: null,
+  deliveryType: '',
+  region: '',
+  preferredCategory: ''
+})
+
+// 지역 선택값. '__custom' 이면 아래 입력칸의 값을 쓴다.
+const regionChoice = ref('')
+const knownRegions = ref([])
+
+watch(regionChoice, value => {
+  form.region = value === '__custom' ? '' : value
+})
+
+// 카탈로그에 실제로 등록된 지역만 후보로 보여 준다. 없는 값을 지어내지 않는다.
+onMounted(async () => {
+  try {
+    const courses = unwrapListResponse(await courseApi.getAll())
+    knownRegions.value = [...new Set(
+      courses.flatMap(course => (course.region || '').split(',').map(r => r.trim()))
+    )].filter(Boolean).sort()
+  } catch (error) {
+    console.error('[EducationNeeds] 지역 후보 조회 실패:', error)
+  }
 })
 
 function analyzeNeeds() {
-  const category = inferCategoryFromNeeds(form)
+  // 분야를 직접 골랐으면 그 값을 쓰고, 아니면 키워드에서 도출한다.
+  const category = form.preferredCategory || inferCategoryFromNeeds(form)
+
+  // 입력한 조건은 전부 근거 문구에 드러낸다. 화면에 안 쓰이는 입력칸을 두지 않는다.
+  const conditions = []
+  if (form.difficulty !== 'AUTO') conditions.push(`난이도 ${difficultyLabel(form.difficulty)}`)
+  if (form.deliveryType) conditions.push(`교육 방식 ${deliveryTypeLabel(form.deliveryType)}`)
+  if (form.region) conditions.push(`교육 지역 ${form.region}`)
+  if (form.budget > 0) conditions.push(`1인당 예산 ${formatPrice(form.budget)}`)
+
   const payload = {
     ...form,
     category,
     categoryLabel: categoryLabelMap[category],
-    reason: `${categoryLabelMap[category]} 키워드와 교육 대상 역량이 가장 강하게 감지되었습니다.`
+    reason: `${categoryLabelMap[category]} 키워드가 가장 강하게 감지되었습니다.`
+      + (conditions.length ? ` 지정한 조건은 ${conditions.join(', ')}입니다.` : '')
   }
 
   analysis.value = payload
   sessionStorage.setItem('hrd_needs_analysis', JSON.stringify(payload))
-  setTimeout(() => router.push('/recommendations'), 450)
 }
 </script>

@@ -27,7 +27,7 @@
       <article class="planning-card">
         <span class="pill danger">{{ planningCard.badge }}</span>
         <h2>{{ planningCard.title }}</h2>
-        <p>{{ planningCard.description }}</p>
+        <p v-for="line in planningCard.description" :key="line" class="planning-line">{{ line }}</p>
         <router-link :to="planningCard.to" class="btn btn-primary">
           {{ planningCard.button }}
           <span>→</span>
@@ -39,7 +39,7 @@
           <h2>오늘 할 일</h2>
           <span class="pill danger">{{ tasks.length }} Pending</span>
         </div>
-        <div class="task-list">
+        <div v-if="tasks.length" class="task-list">
           <router-link
             v-for="task in tasks"
             :key="task.title"
@@ -51,15 +51,17 @@
             <div>
               <strong>{{ task.title }}</strong>
               <p>{{ task.description }}</p>
-              <small>{{ task.due }}</small>
+              <small v-if="task.due">{{ task.due }}</small>
             </div>
           </router-link>
         </div>
+        <p v-else class="task-empty">지금 처리할 항목이 없습니다.</p>
         <router-link :to="taskListTarget" class="panel-link">전체 할 일 보기</router-link>
       </aside>
     </section>
 
-    <section class="content-grid two">
+    <!-- 좌우 항목 수가 달라도 높이를 맞춘다 -->
+    <section class="content-grid two equal">
       <article class="panel">
         <div class="panel-title">
           <h2>{{ coursePanelTitle }}</h2>
@@ -68,6 +70,8 @@
         <div v-if="loading" class="skeleton-list">
           <div v-for="i in 3" :key="i" class="skeleton-line"></div>
         </div>
+        <p v-else-if="loadError" class="task-empty">교육 목록을 불러오지 못했습니다. 백엔드 상태를 확인해 주세요.</p>
+        <p v-else-if="!previewCourses.length" class="task-empty">등록된 교육 프로그램이 없습니다.</p>
         <div v-else class="compact-list">
           <router-link
             v-for="course in previewCourses"
@@ -100,19 +104,33 @@
 import { computed, onMounted, ref } from 'vue'
 import HrdLayout from '@/components/HrdLayout.vue'
 import { courseApi } from '@/api/course.js'
+import { enrollmentApi } from '@/api/enrollment.js'
 import { useAuthStore } from '@/store/auth.js'
 import { isProviderRole, normalizeCourse, unwrapListResponse } from '@/utils/hrd.js'
 
 const auth = useAuthStore()
 const courses = ref([])
+const enrollments = ref([])
 const loading = ref(true)
+const loadError = ref(false)
 
-const displayName = computed(() => auth.user?.name || 'Sarah')
+const displayName = computed(() => auth.user?.name || '담당자')
 const isProvider = computed(() => isProviderRole(auth.user?.role))
-const previewCourses = computed(() => courses.value.slice(0, 4).map(normalizeCourse))
+
+// 공급자 화면의 지표·할 일·단계는 "본인이 등록한 프로그램"만 세어야 한다.
+// 전체 카탈로그를 쓰면 남이 올린 강의가 본인 실적으로 잡힌다.
+const myCourses = computed(() => (
+  isProvider.value
+    ? courses.value.filter(course => Number(course.instructorId) === Number(auth.user?.id))
+    : courses.value
+))
+
+const previewCourses = computed(() => myCourses.value.slice(0, 4).map(normalizeCourse))
+const activeCount = computed(() => enrollments.value.filter(item => item.status === 'ACTIVE').length)
+const pendingCount = computed(() => enrollments.value.filter(item => item.status === 'PENDING').length)
 
 const dashboardTitle = computed(() => (
-  isProvider.value ? `공급자 대시보드, ${displayName.value}` : `Good Morning, ${displayName.value}.`
+  isProvider.value ? `공급자 대시보드, ${displayName.value}님` : `${displayName.value}님, 반갑습니다.`
 ))
 const dashboardDescription = computed(() => (
   isProvider.value
@@ -129,78 +147,111 @@ const planningCard = computed(() => (
     ? {
         badge: 'Provider Program Setup',
         title: '기업 교육 프로그램 등록',
-        description: '교육 기간, 방식, 대상 직무, 가능 지역을 입력해 HRD 담당자가 비교할 수 있는 프로그램 정보를 구성합니다.',
+        description: ['교육 기간, 방식, 대상 직무, 가능 지역을 입력해',
+                      'HRD 담당자가 비교할 수 있는 프로그램 정보를 구성합니다.'],
         button: '프로그램 등록하기',
         to: '/courses/new'
       }
     : {
         badge: 'Q3 Planning Cycle Open',
         title: '기업 교육 니즈 입력',
-        description: '사업계획과 현재 역량을 입력하면 키워드와 교육 분야를 기준으로 필요한 기업 교육 프로그램을 추천합니다.',
+        description: ['사업계획과 현재 역량을 입력하면 키워드와 교육 분야를 기준으로',
+                      '필요한 기업 교육 프로그램을 추천합니다.'],
         button: '교육 기획 시작',
         to: '/needs'
       }
 ))
-const tasks = computed(() => (
-  isProvider.value
-    ? [
-        { icon: 'CR', title: '프로그램 정보 보완', description: '교육 기간과 대상 직무를 최신 기준으로 입력', due: '오늘 권장', to: '/courses/new', urgent: true },
-        { icon: 'PC', title: '카탈로그 노출 확인', description: 'HRD 담당자에게 보이는 프로그램 카드 점검', due: '이번 주', to: '/courses', urgent: false },
-        { icon: 'PV', title: '공급자 프로필 확인', description: '전문 분야와 가능 지역 정보 점검', due: '2일 후', to: '/providers/1', urgent: false }
-      ]
-    : [
-        { icon: 'CT', title: '계약 신청 상태 확인', description: '신청한 기업 교육 계약 진행 상태 점검', due: '오늘 마감', to: '/enrollments', urgent: true },
-        { icon: 'SV', title: '만족도 조사 마감 임박', description: '진행 중인 교육의 만족도 응답률 확인', due: '2일 후 마감', to: '/surveys', urgent: false },
-        { icon: 'AI', title: '추천 교육 검토', description: '최근 입력한 교육 니즈 기반 추천 후보 확인', due: '이번 주', to: '/recommendations', urgent: false }
-      ]
-))
+// 할 일은 실제 상태에서 만든다. 해당 사항이 없으면 그 항목은 빼서 빈 목록이 되게 둔다.
+const tasks = computed(() => {
+  if (isProvider.value) {
+    const list = []
+    if (!myCourses.value.length) {
+      list.push({ icon: 'CR', title: '첫 프로그램 등록', description: '아직 등록한 교육 프로그램이 없습니다.', due: '', to: '/courses/new', urgent: true })
+    }
+    const missingSchedule = myCourses.value.filter(c => !c.startDate && !c.durationDays).length
+    if (missingSchedule) {
+      list.push({ icon: 'PC', title: '일정 정보 미입력', description: `${missingSchedule}개 프로그램에 교육 기간·시작일이 없습니다.`, due: '', to: '/courses', urgent: false })
+    }
+    return list
+  }
+
+  const list = []
+  if (pendingCount.value) {
+    list.push({ icon: 'CT', title: '계약 신청 진행 중', description: `${pendingCount.value}건이 확정 대기 상태입니다.`, due: '', to: '/enrollments', urgent: true })
+  }
+  if (activeCount.value) {
+    list.push({ icon: 'SV', title: '만족도 조사 대상', description: `확정된 교육 ${activeCount.value}건에 만족도를 남길 수 있습니다.`, due: '', to: '/surveys', urgent: false })
+  }
+  if (!enrollments.value.length) {
+    list.push({ icon: 'AI', title: '추천 교육 검토', description: '아직 신청한 교육이 없습니다. 추천 후보부터 확인해 보세요.', due: '', to: '/recommendations', urgent: false })
+  }
+  return list
+})
 const taskListTarget = computed(() => (isProvider.value ? '/courses' : '/enrollments'))
 const coursePanelTitle = computed(() => (isProvider.value ? '카탈로그 등록 현황' : '추천 교육'))
 const coursePanelTarget = computed(() => (isProvider.value ? '/courses' : '/recommendations'))
 const stepPanelTitle = computed(() => (isProvider.value ? '공급자 운영 단계' : '교육 기획 단계'))
+// 진행 표시는 실제 상태에서 판정한다.
+const hasNeeds = computed(() => !!sessionStorage.getItem('hrd_needs_analysis'))
 const workflowSteps = computed(() => (
   isProvider.value
     ? [
-        { label: '프로그램 등록', done: true },
-        { label: '운영 조건 입력', done: true },
+        { label: '프로그램 등록', done: myCourses.value.length > 0 },
+        { label: '운영 조건 입력', done: myCourses.value.some(c => c.startDate || c.durationDays) },
         { label: '계약 요청 확인', done: false },
         { label: '교육 진행', done: false },
         { label: '만족도 개선', done: false }
       ]
     : [
-        { label: 'Needs 분석', done: true },
-        { label: '과정 추천', done: false },
-        { label: '강사 매칭', done: false },
-        { label: '교육 개설', done: false },
-        { label: '운영·결제', done: false }
+        { label: 'Needs 분석', done: hasNeeds.value },
+        { label: '과정 추천', done: hasNeeds.value },
+        { label: '계약 신청', done: enrollments.value.length > 0 },
+        { label: '교육 확정', done: activeCount.value > 0 },
+        { label: '만족도 조사', done: false }
       ]
 ))
 
-const metrics = computed(() => (
-  isProvider.value
-    ? [
-        { label: '등록 프로그램', value: courses.value.length || 1, note: '카탈로그 노출 기준', icon: 'PC', tone: 'positive' },
-        { label: '계약 요청', value: '2', note: '확인 필요', icon: 'CT', tone: 'danger-text' },
-        { label: '운영 가능 방식', value: '3', note: '온라인/오프라인/병행', icon: 'OP', tone: '' },
-        { label: '평균 만족도', value: '4.8/5.0', note: '등록 교육 기준', icon: 'ST', tone: '' }
-      ]
-    : [
-        { label: '진행 중인 교육', value: '12', note: '지난달 대비 +2', icon: 'TR', tone: 'positive' },
-        { label: '계약 요청', value: '5', note: '2건 확인 필요', icon: 'CT', tone: 'danger-text' },
-        { label: '추천 교육', value: Math.max(courses.value.length, 8), note: '최근 교육 니즈 기반', icon: 'AI', tone: '' },
-        { label: '평균 만족도', value: '4.8/5.0', note: '진행 교육 전체 기준', icon: 'ST', tone: '' }
-      ]
-))
+// 지표는 실제 응답에서만 만든다. 추정치·목표치를 섞지 않는다.
+const metrics = computed(() => {
+  const categoryCount = new Set(courses.value.map(c => c.category).filter(Boolean)).size
+  const myCategoryCount = new Set(myCourses.value.map(c => c.category).filter(Boolean)).size
+
+  if (isProvider.value) {
+    return [
+      { label: '내 등록 프로그램', value: myCourses.value.length, note: `전체 카탈로그 ${courses.value.length}건 중`, icon: 'PC', tone: 'positive' },
+      { label: '교육 분야', value: myCategoryCount, note: '내가 노출 중인 분야 수', icon: 'OP', tone: '' },
+      { label: '일정 미입력', value: myCourses.value.filter(c => !c.startDate && !c.durationDays).length, note: '보완 필요', icon: 'CT', tone: 'danger-text' },
+      { label: '만족도', value: '집계 예정', note: '만족도 API 배포 후 제공', icon: 'ST', tone: '' }
+    ]
+  }
+
+  return [
+    { label: '확정된 교육', value: activeCount.value, note: 'ACTIVE 상태', icon: 'TR', tone: 'positive' },
+    { label: '계약/참여 신청 중', value: pendingCount.value, note: 'PENDING 상태', icon: 'CT', tone: pendingCount.value ? 'danger-text' : '' },
+    { label: '카탈로그 프로그램', value: courses.value.length, note: `${categoryCount}개 분야`, icon: 'AI', tone: '' },
+    { label: '만족도', value: '집계 예정', note: '만족도 API 배포 후 제공', icon: 'ST', tone: '' }
+  ]
+})
 
 onMounted(async () => {
-  try {
-    const res = await courseApi.getAll()
-    courses.value = unwrapListResponse(res)
-  } catch (error) {
-    console.error('[HrdDashboard] failed to load courses:', error)
-    courses.value = []
-  } finally {
-    loading.value = false
+  const [courseRes, enrollRes] = await Promise.allSettled([
+    courseApi.getAll(),
+    enrollmentApi.getMyEnrollments()
+  ])
+
+  if (courseRes.status === 'fulfilled') {
+    courses.value = unwrapListResponse(courseRes.value)
+  } else {
+    console.error('[HrdDashboard] 교육 목록 조회 실패:', courseRes.reason)
+    loadError.value = true
   }
+
+  if (enrollRes.status === 'fulfilled') {
+    enrollments.value = Array.isArray(enrollRes.value.data?.data) ? enrollRes.value.data.data : []
+  } else {
+    console.error('[HrdDashboard] 내 계약 조회 실패:', enrollRes.reason)
+  }
+
+  loading.value = false
 })
 </script>

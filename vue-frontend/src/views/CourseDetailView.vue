@@ -7,7 +7,7 @@
         <div>
           <span class="pill">{{ normalized.categoryLabel }}</span>
           <h1>{{ course.title }}</h1>
-          <p>{{ course.description || '기업 역량 강화를 위한 실무 중심 교육 프로그램입니다.' }}</p>
+          <p>{{ course.description || '등록된 프로그램 설명이 없습니다.' }}</p>
         </div>
         <aside class="contract-card">
           <span>예상 교육비</span>
@@ -16,6 +16,7 @@
             {{ buttonText }}
           </button>
           <small>{{ helperText }}</small>
+          <div v-if="submitError" class="notice-box error">{{ submitError }}</div>
         </aside>
       </section>
 
@@ -34,32 +35,38 @@
             <div><span>신청 수</span><strong>{{ course.enrollmentCount ?? 0 }}건</strong></div>
             <div><span>상태</span><strong>{{ course.status || 'ACTIVE' }}</strong></div>
           </div>
-          <ul class="curriculum-list">
-            <li>기업 니즈 진단 및 사례 기반 개념 정리</li>
-            <li>직무별 실습 과제와 적용 시나리오 설계</li>
-            <li>교육 종료 후 만족도 조사와 개선 포인트 수집</li>
+          <h3 class="sub-title">커리큘럼</h3>
+          <ul v-if="curriculumItems.length" class="curriculum-list">
+            <li v-for="(item, index) in curriculumItems" :key="index">{{ item }}</li>
           </ul>
+          <p v-else class="muted-note">
+            등록된 커리큘럼이 없습니다. 교육 공급자가 프로그램 설명에 커리큘럼을 입력하면 이곳에 표시됩니다.
+          </p>
         </article>
 
         <article class="panel">
           <div class="panel-title">
-            <h2>Provider Snapshot</h2>
-            <router-link to="/providers/1">상세 보기</router-link>
+            <h2>교육 공급자</h2>
+            <router-link v-if="course.instructorId" :to="`/providers/${course.instructorId}`">상세 보기</router-link>
           </div>
           <div class="provider-card mini">
-            <div class="provider-avatar">{{ provider.name.charAt(0) }}</div>
+            <div class="provider-avatar" :style="{ background: avatarColor(normalized.providerName) }">{{ providerInitial }}</div>
             <div>
-              <strong>{{ provider.name }}</strong>
-              <p>{{ provider.specialty }} · {{ provider.experience }}</p>
-              <span class="pill success">만족도 {{ provider.satisfaction }}</span>
+              <strong>{{ normalized.providerName }}</strong>
+              <p>{{ normalized.categoryLabel }} · 공급자 ID {{ course.instructorId ?? '-' }}</p>
             </div>
+          </div>
+          <!-- 명세 03_api_spec.md:142 — 공급자 경력은 description 에 담긴다 -->
+          <div v-if="providerCareer" class="info-grid single">
+            <div><span>공급자 경력</span><strong>{{ providerCareer }}</strong></div>
           </div>
         </article>
       </section>
     </template>
 
     <section v-else class="empty-panel">
-      <h2>프로그램을 찾지 못했습니다.</h2>
+      <h2>{{ loadError ? '프로그램 정보를 불러오지 못했습니다.' : '프로그램을 찾지 못했습니다.' }}</h2>
+      <p v-if="loadError">백엔드 서비스가 기동되어 있는지 확인한 뒤 다시 시도해 주세요.</p>
       <router-link to="/courses" class="btn btn-primary">카탈로그로 이동</router-link>
     </section>
   </HrdLayout>
@@ -72,7 +79,7 @@ import HrdLayout from '@/components/HrdLayout.vue'
 import { courseApi } from '@/api/course.js'
 import { enrollmentApi } from '@/api/enrollment.js'
 import { useAuthStore } from '@/store/auth.js'
-import { formatPrice, normalizeCourse, sampleProviders, unwrapObjectResponse } from '@/utils/hrd.js'
+import { avatarColor, formatPrice, normalizeCourse, parseCourseDescription, unwrapObjectResponse } from '@/utils/hrd.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -81,14 +88,22 @@ const course = ref(null)
 const loading = ref(true)
 const submitting = ref(false)
 const status = ref('NONE')
-const provider = sampleProviders[0]
+const loadError = ref(false)
+const submitError = ref('')
 
 const isInstructor = computed(() => auth.user?.role === 'INSTRUCTOR')
 const normalized = computed(() => normalizeCourse(course.value))
+const providerInitial = computed(() => normalized.value?.providerName?.charAt(0)?.toUpperCase() || 'P')
+
+// 명세 F-06·03_api_spec.md:142 상 커리큘럼과 공급자 경력은 description 에 담긴다.
+// 없는 내용을 지어내지 않는다.
+const parsedDescription = computed(() => parseCourseDescription(course.value?.description))
+const curriculumItems = computed(() => parsedDescription.value.curriculum)
+const providerCareer = computed(() => parsedDescription.value.providerCareer)
 const buttonText = computed(() => {
   if (isInstructor.value) return '공급자 계정은 신청 불가'
   if (status.value === 'ACTIVE') return '내 계약으로 이동'
-  if (status.value === 'PENDING') return '신청 검토 중'
+  if (status.value === 'PENDING') return '계약/참여 신청 중'
   return submitting.value ? '신청 중...' : '교육 계약 신청'
 })
 const helperText = computed(() => {
@@ -117,11 +132,16 @@ async function requestContract() {
   }
   if (!course.value?.id || status.value === 'PENDING') return
 
+  submitError.value = ''
   submitting.value = true
   try {
     await enrollmentApi.enroll(course.value.id)
     status.value = 'PENDING'
     setTimeout(() => router.push('/enrollments'), 600)
+  } catch (error) {
+    // 실패를 삼키면 버튼만 원복되어 사용자가 원인을 알 수 없다.
+    console.error('[CourseDetail] 계약 신청 실패:', error)
+    submitError.value = error.response?.data?.message || '계약 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.'
   } finally {
     submitting.value = false
   }
@@ -132,6 +152,10 @@ onMounted(async () => {
     const res = await courseApi.getById(route.params.id)
     course.value = normalizeCourse(unwrapObjectResponse(res))
     await loadStatus()
+  } catch (error) {
+    console.error('[CourseDetail] 프로그램 조회 실패:', error)
+    course.value = null
+    loadError.value = true
   } finally {
     loading.value = false
   }

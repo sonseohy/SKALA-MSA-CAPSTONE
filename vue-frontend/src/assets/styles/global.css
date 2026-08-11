@@ -44,6 +44,10 @@ body {
   font-family: var(--font-sans);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  /* 기본값은 한국어를 음절 단위로 끊어 「매칭」이 「매 / 칭」으로 갈라진다.
+     어절 단위로만 줄을 바꾸고, 한 줄에 못 담는 긴 낱말만 예외로 쪼갠다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 a {
@@ -243,6 +247,16 @@ button {
   flex: 0 0 auto;
 }
 
+/* 분야 토큰은 「DevOps」(35px)처럼 28px 원을 넘치는 글자가 있어
+   옆 글자와 겹쳐 보였다. 최소 28px 은 지키되 글자에 맞춰 늘어나게 한다. */
+.program-token {
+  width: auto;
+  min-width: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+}
+
+
 .hrd-sidebar-footer {
   margin-top: auto;
   border-top: 1px solid var(--line);
@@ -354,17 +368,36 @@ button {
   padding: 0 12px;
 }
 
+/* 섹션마다 제 여백을 들고 있어 간격이 14 / 22 / 24 / 28px 로 제각각이었다.
+   본문에서 한 값으로 통일하고, 직계 자식의 세로 여백은 지운다. */
 .hrd-main {
   padding: 28px;
   max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
+
 
 .page-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   gap: 24px;
-  margin-bottom: 22px;
+  /* 오른쪽 버튼이 본문에서 멀리 떠 보여 아래 여백을 좁힌다. */
+  margin-bottom: 14px;
+}
+
+/* 아래 끝을 맞추면 상자 기준으로는 정렬되지만, 설명문 상자 아래에 줄간격 여백이
+   남아 있어 키가 큰 버튼일수록 글자 줄보다 위로 떠 보인다.
+   설명문 글자 줄 한가운데에 오도록 실측값만큼 옮긴다. 레이아웃 높이는 건드리지 않는다. */
+.page-head > .btn,
+.page-head nav .btn {
+  transform: translateY(6px);
+}
+
+.page-head > .pill {
+  transform: translateY(-3px);
 }
 
 .eyebrow {
@@ -475,12 +508,33 @@ button {
 }
 
 .dashboard-grid {
-  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  /* 아래 줄(추천 교육 / 교육 기획 단계)과 세로 경계선을 맞춘다. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 24px;
 }
 
 .content-grid.two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* 그리드 기본값(stretch)이라 한쪽이 길면 반대쪽 패널이 통째로 늘어나
+     속이 빈 채 벌어졌다. 각 칸은 제 내용만큼만 차지하게 둔다. */
+  align-items: start;
+}
+
+/* 좌우 항목 수가 달라도 높이를 맞추고 싶은 줄에 쓴다.
+   패널을 늘리되 속을 비워 두지 않고, 안쪽 목록이 남는 높이를 나눠 갖게 한다. */
+.content-grid.equal {
+  align-items: stretch;
+}
+
+.content-grid.equal > .panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.content-grid.equal .compact-list,
+.content-grid.equal .step-list {
+  flex: 1;
+  grid-auto-rows: 1fr;
 }
 
 .content-grid.three {
@@ -510,6 +564,12 @@ button {
   margin: 0 0 24px;
   color: var(--text-muted);
   font-size: 16px;
+}
+
+/* 한 문단을 줄 단위로 나눠 그리므로 줄 사이 간격을 없앤다.
+   `.planning-card p` 의 아래 여백(24px)이 줄 사이에 들어가던 것이 원인이었다. */
+.planning-line:not(:last-of-type) {
+  margin-bottom: 0;
 }
 
 .task-panel,
@@ -609,6 +669,9 @@ button {
 }
 
 .step-list li {
+  /* .content-grid.equal 에서 행이 늘어나면 글자가 위에 남는다. 가운데로 둔다. */
+  display: flex;
+  align-items: center;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -658,6 +721,9 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+  /* 한쪽 칸에만 설명문이 있으면 그 행이 높아지고, 옆 칸 입력이 세로 가운데로
+     내려가 라벨-입력 줄이 어긋난다. 위로 붙여 두 칸의 입력을 같은 높이에 둔다. */
+  align-items: start;
 }
 
 .form-row {
@@ -680,6 +746,7 @@ input,
 textarea,
 select {
   width: 100%;
+  box-sizing: border-box;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -688,8 +755,45 @@ select {
   outline: none;
 }
 
+/* select 는 line-height 가 normal 이라 옵션 텍스트에 따라 높이가 흔들린다.
+   input 과 같은 줄간격·최소 높이를 명시해 한 줄짜리 입력의 높이를 통일한다.
+   (실제로 option 마크업 줄바꿈 때문에 47px / 49px / 60px 로 벌어져 있었다) */
+input,
+select {
+  line-height: 1.55;
+  min-height: 49px;
+}
+
+/* 크롬의 날짜 위젯은 자체 높이를 가져 다른 입력보다 1.8px 커진다.
+   같은 줄에 놓이면 눈에 띄므로 높이를 맞춘다. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"] {
+  height: 49px;
+  line-height: normal;
+}
+
+/* 브라우저 기본 화살표는 padding-right 를 무시하고 오른쪽 끝에 붙는다.
+   기본 화살표를 끄고 직접 그려서 여백을 준다. padding-right 는 긴 값이
+   화살표와 겹치지 않도록 화살표 자리만큼 확보한 값이다. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%236F5A5A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
 textarea {
   resize: vertical;
+  line-height: 1.55;
+}
+
+/* 선택 상자 아래에 덧붙는 직접 입력칸 */
+.stacked-input {
+  margin-top: 8px;
 }
 
 input:focus,
@@ -919,9 +1023,311 @@ select:focus {
 }
 
 .curriculum-list {
-  margin: 18px 0 0;
+  margin: 8px 0 0;
   padding-left: 18px;
   color: var(--text-muted);
+}
+
+/* 원형·정사각 배지 안의 글자 세로 정렬 보정.
+   flex 는 글자의 "em 상자"(어센더~디센더)를 가운데 맞추는데, 대문자·한글에는
+   디센더가 없어 실제 획이 위로 떠 보인다. 측정값 기준으로 아래로 밀어 준다.
+   - line-height 를 1 로 고정해 상속된 줄간격(1.55)이 만드는 편차를 없앤다
+   - box-sizing:border-box 라 padding 을 넣어도 배지 크기는 그대로다
+   측정: 54px 배지 -3.12px → -0.12px, 28px 배지 -1.81px → +0.19px */
+.hrd-nav-icon,
+.program-token,
+.task-icon,
+.hrd-avatar,
+.provider-avatar,
+.profile-avatar-lg,
+.hrd-brand-mark,
+.brand-mark {
+  box-sizing: border-box;
+  line-height: 1;
+  padding-top: 0.22em;
+}
+
+/* 버튼·알약은 높이가 내용에 따라 정해지므로, 위 패딩을 늘린 만큼 아래를 줄여
+   높이를 유지한 채 글자만 내린다. 기준값은 각 규칙의 원래 세로 패딩이다. */
+.btn {
+  padding-top: calc(9px + 0.07em);
+  padding-bottom: calc(9px - 0.07em);
+}
+
+.pill {
+  line-height: 1.2;
+  padding-top: calc(4px + 0.05em);
+  padding-bottom: calc(4px - 0.05em);
+}
+
+/* 목록 위 검색·필터·정렬 줄. 목록이 주인공이므로 최대한 낮게 유지한다. */
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+/* 검색창이 남는 폭을 다 먹으면(필터가 적은 화면) 지나치게 길어진다. 상한을 둔다. */
+.toolbar-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+  max-width: 460px;
+}
+
+/* 선택지 글자가 잘리지 않을 만큼 확보한다. */
+.toolbar-field {
+  flex: 0 1 172px;
+  min-width: 152px;
+}
+
+/* 검색(버튼을 눌러야 적용)과 필터·정렬(고르면 바로 적용)을 갈라 놓는다.
+   필터 개수·순서에 기대지 않도록 검색 버튼 뒤에서 남는 폭을 만든다. */
+.toolbar-search-btn {
+  margin-right: auto;
+}
+
+/* 목록 위 구분 칩 (카탈로그 카테고리 칩과 같은 모양) */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* 칩 줄 바로 아래에 목록이 붙어 한 덩어리로 보였다. 사이를 띄운다.
+   패널 머리(.panel-title) 안에 들어간 칩 줄은 그 자체가 머리의 일부라 제외한다. */
+.panel > .chip-row,
+.table-panel > .chip-row {
+  margin-bottom: 14px;
+}
+
+/* 어떤 교육에 대한 결과인지 밝히는 머리말 */
+.survey-subject {
+  padding-bottom: 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.survey-subject h2 {
+  margin: 4px 0 0;
+}
+
+.survey-subject-meta {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* 라벨을 위에 쌓지 않고 접근성용으로만 남겨 줄 높이를 줄인다. */
+.list-toolbar label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.list-toolbar input,
+.list-toolbar select {
+  min-height: 38px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+.list-toolbar select {
+  padding-right: 32px;
+  background-position: right 11px center;
+}
+
+.list-toolbar .btn {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+/* 페이지 이동 — 목록 아래 가운데 한 곳에만 둔다. */
+.pager {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 22px 0 6px;
+}
+
+.pager-count {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pager-count strong {
+  color: var(--text);
+}
+
+.pager-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pager-buttons button {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pager-buttons button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pager-buttons button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.pager-buttons button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pager-gap {
+  padding: 0 2px;
+  color: var(--text-muted);
+}
+
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.provider-card-lg {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  color: inherit;
+  text-decoration: none;
+  transition: 0.18s ease;
+}
+
+.provider-card-lg:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  box-shadow: 0 8px 18px rgba(24, 24, 24, 0.06);
+}
+
+.provider-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 이름과 부가정보가 한 줄에 붙지 않게 세로로 쌓는다. */
+.provider-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.provider-card-title strong {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.provider-card-title small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.provider-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.provider-chips span {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.provider-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.provider-facts dt {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.provider-facts dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.provider-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.provider-card-foot strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.info-grid.single {
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 14px;
+}
+
+.sub-title {
+  margin: 20px 0 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.muted-note {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .provider-card {
@@ -972,11 +1378,29 @@ td {
   vertical-align: middle;
 }
 
+/* uppercase 는 한글에 아무 효과가 없으므로 뺀다. 나머지는 원래대로 둔다. */
 th {
   color: var(--text-muted);
   font-size: 12px;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* 회색 머리 줄은 만족도 화면의 「확정 교육」 표에만 쓴다.
+   전역으로 걸면 다른 표까지 전부 회색이 된다(실제로 그렇게 만들었다가 되돌림). */
+.survey-results-grid .table-panel th {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border-bottom-color: var(--line-strong);
+}
+
+/* 그 머리 줄이 패널 구분선에 딱 붙도록 위 여백을 없앤다.
+   (.panel-title 은 padding-bottom 14 + margin-bottom 16 을 갖고 있다) */
+.survey-results-grid .panel-title + table {
+  margin-top: -16px;
 }
 
 td small {
@@ -1188,7 +1612,8 @@ td small {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 42px;
+  padding-left: max(28px, calc((100% - 1160px) / 2));
+  padding-right: max(28px, calc((100% - 1160px) / 2));
   background: rgba(255, 255, 255, 0.9);
   border-bottom: 1px solid var(--line);
 }
@@ -1200,9 +1625,14 @@ td small {
 }
 
 .public-hero {
-  max-width: 1160px;
-  margin: 0 auto;
-  padding: 80px 28px;
+  flex: 1;
+  /* 헤더를 뺀 남는 높이 안에서 세로 가운데에 둔다.
+     start 로 두면 하단이 통째로 비어 미완성처럼 보인다. */
+  align-content: center;
+  padding-top: 48px;
+  padding-bottom: 48px;
+  padding-left: max(28px, calc((100% - 1160px) / 2));
+  padding-right: max(28px, calc((100% - 1160px) / 2));
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
   gap: 56px;
@@ -1224,13 +1654,10 @@ td small {
   margin-top: 28px;
 }
 
+/* 카드 3장을 다시 카드로 감싸 테두리가 이중으로 보였다. 감싸는 상자를 없앤다. */
 .hero-preview {
   display: grid;
   gap: 14px;
-  padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.8);
 }
 
 .login-page {
@@ -1238,15 +1665,94 @@ td small {
   grid-template-columns: minmax(0, 1fr) minmax(420px, 0.8fr);
 }
 
+/* ── 공개 랜딩 ────────────────────────────────────────────── */
+
+
+
+
+
+/* 랜딩은 헤더 + 히어로 한 화면으로 끝낸다. 스크롤이 생기지 않게 히어로가 남는 높이를 채운다. */
+.public-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* 자식이 둘뿐인데 space-between 이라 가운데가 통째로 비어 있었다.
+   본문을 가운데 두고 위아래에 브랜드와 꼬리말을 둔다. */
 .login-story {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   padding: 54px;
   background:
     radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.18), transparent 34%),
     linear-gradient(145deg, #8f0016, #c90021);
   color: #fff;
+}
+
+.login-story-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 520px;
+}
+
+/* 배지가 제목에 붙어 보이지 않게 아래 여백을 준다. */
+.login-story-body .pill {
+  margin-bottom: 18px;
+}
+
+.login-story-foot {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.login-points {
+  display: grid;
+  gap: 16px;
+  margin: 30px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.login-points li {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.login-point-mark {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding-top: 0.22em;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.login-points strong {
+  display: block;
+  color: #fff;
+  font-size: 15px;
+}
+
+.login-points small {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .login-story .public-brand,
@@ -1262,17 +1768,41 @@ td small {
 
 .login-panel {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  padding: 54px;
+  padding: 54px 40px;
+  background: var(--surface-muted);
+}
+
+/* 입력 묶음이 흰 여백에 그냥 떠 있어 미완성으로 보였다. 카드로 묶는다. */
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
   background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: 0 18px 44px rgba(24, 24, 24, 0.08);
+}
+
+.auth-back {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: 13px;
 }
 
 .auth-box {
   display: grid;
-  gap: 16px;
-  max-width: 420px;
-  margin-top: 34px;
+  gap: 18px;
+  margin: 0;
+}
+
+.field-help {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .auth-box h2 {
@@ -1382,4 +1912,23 @@ td small {
   .hero-copy h1 {
     font-size: 34px;
   }
+}
+
+/* 할 일·목록이 비었을 때의 안내문 (가짜 데이터를 채우지 않기 위해 추가) */
+.task-empty {
+  margin: 4px 0 0;
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* 본문 직계 섹션의 세로 여백을 지워 .hrd-main 의 gap 하나로만 간격을 정한다.
+   컴포넌트 규칙과 특이도가 같으므로 파일 맨 끝에 두어 순서로 이긴다.
+   패널 안에 중첩된 .pager 등은 직계가 아니므로 제 여백을 그대로 쓴다. */
+.hrd-main > * {
+  margin-top: 0;
+  margin-bottom: 0;
 }
