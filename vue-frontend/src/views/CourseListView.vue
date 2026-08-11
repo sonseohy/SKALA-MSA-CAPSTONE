@@ -93,6 +93,7 @@ import PagerBar from '@/components/PagerBar.vue'
 import { courseApi } from '@/api/course.js'
 import { useAuthStore } from '@/store/auth.js'
 import { usePagedList } from '@/composables/usePagedList.js'
+import { useProviderNames } from '@/composables/useProviderNames.js'
 import { categoryOptions, deliveryTypeOptions, normalizeCourse, unwrapListResponse } from '@/utils/hrd.js'
 
 const auth = useAuthStore()
@@ -156,11 +157,13 @@ const filteredCourses = computed(() => {
 })
 
 const pager = usePagedList(filteredCourses, 12)
+const { resolve: resolveProviderNames } = useProviderNames()
 
 onMounted(async () => {
   try {
     const res = await courseApi.getAll()
     courses.value = unwrapListResponse(res).map(normalizeCourse)
+    courses.value = await resolveProviderNames(courses.value)
   } catch (error) {
     // catch 가 없으면 조회 실패가 "결과 없음" 으로 보여 원인을 숨긴다.
     console.error('[CourseList] 교육 목록 조회 실패:', error)

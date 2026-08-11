@@ -39,6 +39,7 @@ import ProgramCard from '@/components/ProgramCard.vue'
 import { courseApi } from '@/api/course.js'
 import { recommendApi } from '@/api/recommend.js'
 import { useAuthStore } from '@/store/auth.js'
+import { useProviderNames } from '@/composables/useProviderNames.js'
 import { categoryLabelMap, formatPrice, normalizeCourse, unwrapListResponse } from '@/utils/hrd.js'
 
 const auth = useAuthStore()
@@ -90,10 +91,12 @@ const emptyDescription = computed(() => (
     : '수강 이력이 없으면 인기 교육이 우선 노출됩니다. 카탈로그에서 전체 교육을 확인해 보세요.'
 ))
 
+const { resolve: resolveProviderNames } = useProviderNames()
+
 async function loadByCategory() {
   const category = analysis.value?.category
   const res = category ? await courseApi.getByCategory(category) : await courseApi.getAll()
-  programs.value = unwrapListResponse(res).map(normalizeCourse)
+  programs.value = await resolveProviderNames(unwrapListResponse(res).map(normalizeCourse))
   source.value = 'category'
 }
 
@@ -108,7 +111,7 @@ onMounted(async () => {
   try {
     if (!userId) throw new Error('사용자 정보가 없습니다.')
     const res = await recommendApi.getForUser(userId)
-    programs.value = unwrapListResponse(res).map(normalizeCourse)
+    programs.value = await resolveProviderNames(unwrapListResponse(res).map(normalizeCourse))
     basedOnCategory.value = res.data?.basedOnCategory ?? null
     serviceMessage.value = res.data?.message ?? ''
     source.value = 'recommend'

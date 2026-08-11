@@ -106,6 +106,7 @@ import HrdLayout from '@/components/HrdLayout.vue'
 import { courseApi } from '@/api/course.js'
 import { enrollmentApi } from '@/api/enrollment.js'
 import { useAuthStore } from '@/store/auth.js'
+import { useProviderNames } from '@/composables/useProviderNames.js'
 import { isProviderRole, normalizeCourse, unwrapListResponse } from '@/utils/hrd.js'
 
 const auth = useAuthStore()
@@ -113,6 +114,7 @@ const courses = ref([])
 const enrollments = ref([])
 const loading = ref(true)
 const loadError = ref(false)
+const { resolve: resolveProviderNames } = useProviderNames()
 
 const displayName = computed(() => auth.user?.name || '담당자')
 const isProvider = computed(() => isProviderRole(auth.user?.role))
@@ -240,7 +242,7 @@ onMounted(async () => {
   ])
 
   if (courseRes.status === 'fulfilled') {
-    courses.value = unwrapListResponse(courseRes.value)
+    courses.value = await resolveProviderNames(unwrapListResponse(courseRes.value).map(normalizeCourse))
   } else {
     console.error('[HrdDashboard] 교육 목록 조회 실패:', courseRes.reason)
     loadError.value = true

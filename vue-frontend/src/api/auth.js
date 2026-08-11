@@ -54,6 +54,34 @@ export const authApi = {
   }
 }
 
+// 비밀번호 재설정 — 인증 없이 호출하는 공개 엔드포인트
+export const passwordApi = {
+  /**
+   * 비밀번호 재설정을 요청한다.
+   * 항상 200 을 반환하며, 응답 본문(resp.data.data)에 {resetToken, resetUrl} 이
+   * 실릴 수도(이메일·이름 일치), 비어 있을 수도(불일치 시 일반 안내 문구) 있다 —
+   * 계정 존재 여부가 외부에 노출되지 않도록 백엔드가 의도적으로 감춘다.
+   * 데모 환경이라 resetUrl 을 화면에 그대로 보여준다(실제 운영에서는 이메일 발송).
+   * @param {string} email 가입 시 등록한 기업 이메일
+   * @param {string} name 가입 시 등록한 이름
+   * @returns {Promise} axios 응답. resp.data.message 에 사용자 안내 문구.
+   */
+  resetRequest(email, name) {
+    return api.post('/api/users/password/reset-request', { email, name })
+  },
+
+  /**
+   * 재설정 토큰과 새 비밀번호로 비밀번호 변경을 확정한다.
+   * 토큰이 만료·불일치하면 400 이 오며 사유는 resp.data.message 에 담긴다.
+   * @param {string} token 재설정 요청 응답으로 받은 토큰
+   * @param {string} newPassword 새 비밀번호(8자 이상)
+   * @returns {Promise} axios 응답
+   */
+  resetConfirm(token, newPassword) {
+    return api.post('/api/users/password/reset-confirm', { token, newPassword })
+  }
+}
+
 // 사용자 단건 조회 — 교육 공급자 정보 표시에 사용
 // planning-docs/03_api_spec.md "4. User API · 사용자 단건 조회"
 export const userApi = {

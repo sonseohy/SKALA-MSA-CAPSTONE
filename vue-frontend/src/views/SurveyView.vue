@@ -138,7 +138,7 @@
           <h3 class="sub-title">{{ isSubmitted ? '내가 제출한 만족도' : '만족도 제출' }}</h3>
           <p class="muted-note">
             <strong>{{ selected.course?.title || `Program #${selected.courseId}` }}</strong> 교육에 대한 만족도입니다.
-            명세상 Sprint 2 후보 기능이며 백엔드 배포 후 저장됩니다.
+            교육·강사·업무 활용도·난이도를 5점 척도로 평가하고, 제출 후에도 수정할 수 있습니다.
           </p>
 
           <!-- 이미 제출한 건은 잠가 둔다. 고치려면 수정을 눌러야 한다. -->

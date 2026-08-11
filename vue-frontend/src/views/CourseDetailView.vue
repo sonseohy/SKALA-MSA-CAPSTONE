@@ -79,6 +79,7 @@ import HrdLayout from '@/components/HrdLayout.vue'
 import { courseApi } from '@/api/course.js'
 import { enrollmentApi } from '@/api/enrollment.js'
 import { useAuthStore } from '@/store/auth.js'
+import { useProviderNames } from '@/composables/useProviderNames.js'
 import { avatarColor, formatPrice, normalizeCourse, parseCourseDescription, unwrapObjectResponse } from '@/utils/hrd.js'
 
 const route = useRoute()
@@ -90,6 +91,7 @@ const submitting = ref(false)
 const status = ref('NONE')
 const loadError = ref(false)
 const submitError = ref('')
+const { resolve: resolveProviderNames } = useProviderNames()
 
 const isInstructor = computed(() => auth.user?.role === 'INSTRUCTOR')
 const normalized = computed(() => normalizeCourse(course.value))
@@ -150,7 +152,8 @@ async function requestContract() {
 onMounted(async () => {
   try {
     const res = await courseApi.getById(route.params.id)
-    course.value = normalizeCourse(unwrapObjectResponse(res))
+    const [resolved] = await resolveProviderNames([normalizeCourse(unwrapObjectResponse(res))])
+    course.value = resolved
     await loadStatus()
   } catch (error) {
     console.error('[CourseDetail] 프로그램 조회 실패:', error)

@@ -34,6 +34,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 회원가입은 인증 불필요
                         .requestMatchers("/api/users/register").permitAll()
+                        // 비밀번호 재설정(발급/확정)은 토큰이 없는 상태에서 호출되므로 인증 불필요
+                        .requestMatchers("/api/users/password/**").permitAll()
                         .requestMatchers(
                                 "/api-docs/**",
                                 "/swagger-ui/**",

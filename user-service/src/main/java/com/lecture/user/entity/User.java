@@ -44,4 +44,15 @@ public class User {
     public enum Role {
         STUDENT, INSTRUCTOR
     }
+
+    /** 이름·이메일만 변경한다(비밀번호·역할은 이 메서드로 바꾸지 않는다). */
+    public void updateProfile(String name, String email) {
+        this.name = name;
+        this.email = email;
+    }
+
+    /** 비밀번호를 변경한다. 이미 인코딩된 값을 받는다(평문을 이 메서드에 넘기지 않는다). */
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }

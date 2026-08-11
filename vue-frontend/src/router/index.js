@@ -14,6 +14,12 @@ const routes = [
     meta: { guestOnly: true }
   },
   {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('@/views/ResetPasswordView.vue'),
+    meta: { guestOnly: true }
+  },
+  {
     path: '/callback',
     name: 'Callback',
     component: () => import('@/views/CallbackView.vue')

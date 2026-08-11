@@ -30,7 +30,7 @@
       <div class="auth-card">
         <router-link to="/" class="text-link auth-back">← 홈으로</router-link>
 
-        <div v-if="!showRegister" class="auth-box">
+        <div v-if="!showRegister && !showForgot" class="auth-box">
           <div>
             <h2>로그인</h2>
             <p>OAuth2 인증 서버로 이동해 로그인한 뒤 워크스페이스로 돌아옵니다.</p>
@@ -42,6 +42,51 @@
           <button type="button" class="btn btn-primary full" @click="handleOAuth">인증 서버로 이동해 로그인</button>
 
           <p class="auth-switch">계정이 없으신가요? <button type="button" @click="openRegister">회원가입</button></p>
+          <p class="auth-switch"><button type="button" @click="openForgot">비밀번호를 잊으셨나요?</button></p>
+        </div>
+
+        <div v-else-if="showForgot" class="auth-box">
+          <div>
+            <h2>비밀번호 찾기</h2>
+            <p>가입한 기업 이메일과 이름을 입력하면 재설정 링크를 안내해 드립니다.</p>
+          </div>
+
+          <form v-if="!resetResult" @submit.prevent="handleForgot">
+            <label for="forgotEmail">
+              기업 이메일
+              <input
+                id="forgotEmail"
+                v-model.trim="forgotForm.email"
+                type="email"
+                required
+                placeholder="user@example.com"
+                autocomplete="email"
+              />
+            </label>
+
+            <label for="forgotName">
+              이름
+              <input id="forgotName" v-model.trim="forgotForm.name" required placeholder="홍길동" autocomplete="name" />
+            </label>
+
+            <p v-if="message" class="notice-box" :class="{ error: hasError }">{{ message }}</p>
+
+            <button type="submit" class="btn btn-primary full" :disabled="loading">
+              {{ loading ? '요청 중...' : '재설정 링크 요청' }}
+            </button>
+          </form>
+
+          <div v-else>
+            <p class="notice-box">{{ resetResult.message }}</p>
+            <template v-if="resetResult.resetUrl">
+              <a :href="resetResult.resetUrl" class="text-link">아래 링크로 재설정하세요</a>
+              <p class="field-help">
+                데모 환경에서는 링크를 화면에 표시합니다. 실제 운영에서는 등록된 이메일로 발송됩니다.
+              </p>
+            </template>
+          </div>
+
+          <p class="auth-switch"><button type="button" @click="backToLogin">로그인으로 돌아가기</button></p>
         </div>
 
         <form v-else class="auth-box" @submit.prevent="handleRegister">
@@ -107,14 +152,17 @@
 import { computed, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/auth.js'
-import { authApi } from '@/api/auth.js'
+import { authApi, passwordApi } from '@/api/auth.js'
 
 const auth = useAuthStore()
 const route = useRoute()
 const showRegister = ref(false)
+const showForgot = ref(false)
 const loading = ref(false)
 const message = ref('')
 const hasError = ref(false)
+// 재설정 요청 성공 후 결과({message, resetUrl?})를 담아 폼 대신 안내를 보여준다.
+const resetResult = ref(null)
 
 // api/index.js 가 401 을 받으면 expired=1 을 붙여 이 화면으로 보낸다.
 const expired = computed(() => route.query.expired === '1' && !message.value)
@@ -132,6 +180,11 @@ const registerForm = reactive({
   role: 'STUDENT'
 })
 
+const forgotForm = reactive({
+  email: '',
+  name: ''
+})
+
 const roleHelp = computed(() => (
   registerForm.role === 'INSTRUCTOR'
     ? '교육 프로그램을 등록하고 공급자 프로필을 노출합니다.'
@@ -146,6 +199,38 @@ function openRegister() {
   message.value = ''
   hasError.value = false
   showRegister.value = true
+}
+
+function openForgot() {
+  message.value = ''
+  hasError.value = false
+  resetResult.value = null
+  showForgot.value = true
+}
+
+function backToLogin() {
+  message.value = ''
+  hasError.value = false
+  resetResult.value = null
+  showForgot.value = false
+}
+
+async function handleForgot() {
+  loading.value = true
+  message.value = ''
+  hasError.value = false
+  try {
+    const resp = await passwordApi.resetRequest(forgotForm.email, forgotForm.name)
+    resetResult.value = {
+      message: resp.data.message,
+      resetUrl: resp.data.data?.resetUrl
+    }
+  } catch (error) {
+    hasError.value = true
+    message.value = error.response?.data?.message || '요청 처리에 실패했습니다.'
+  } finally {
+    loading.value = false
+  }
 }
 
 async function handleRegister() {
