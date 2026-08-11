@@ -18,7 +18,16 @@ HRD 담당자는 교육 하나를 도입하기까지 여러 번 맥락을 갈아
 **LearnNexus HRD** 는 이 파편화된 과정을 하나의 워크스페이스로 묶는다.
 
 사업계획을 입력하면 **교육 니즈**를 도출하고, 수강 이력을 근거로 **과정을 추천**하고,
-**계약·결제·만족도**까지 한 화면에서 자연스럽게 이어진다.
+**계약·결제·만족도**까지 한 화면에서 자연스럽게 이어진다. 추천은 수강 이력의 최빈 분야를 분석해
+미수강 과정을 제안하는 방식으로, AI가 교육 기획의 출발점을 잡아 준다.
+
+**이해관계자**
+
+| 이해관계자 | Pain Point | 제공 가치 |
+| :--- | :--- | :--- |
+| HRD 담당자 | 흩어진 과정·공급자 정보, 수작업 비교·관리 | 통합 검색·비교, AI 추천, 계약·만족도 한 화면 관리 |
+| 교육 공급자 | 프로그램 노출·신청 현황 파악 어려움 | 프로그램 등록, 본인 과정만 모은 대시보드 |
+| 임직원 | 어떤 교육이 내게 맞는지 불투명 | 추천 기반 수강, 만족도 피드백 |
 
 <br/>
 
@@ -33,6 +42,21 @@ HRD 담당자는 교육 하나를 도입하기까지 여러 번 맥락을 갈아
 
 <br/>
 
+## 🗂️ 스프린트 구성 (Agile)
+
+핵심 가치가 끝까지 동작하는 최소 버전(MVP)을 **Sprint 1** 에서 완성하고,
+결제·이벤트 같은 확장 기능을 **Sprint 2** 에서 점진적으로 덧붙였다.
+
+| 스프린트 | 목표 | 범위 |
+| :--- | :--- | :--- |
+| **Sprint 1 · MVP** | 핵심 가치가 처음부터 끝까지 흐르는 최소 버전 | 회원(user) · 교육 카탈로그(course) · 수강신청(enrollment) |
+| **Sprint 2 · 확장** | 결제·이벤트로 신청 흐름을 자동화하고 부가 가치를 더함 | 결제(payment) · Kafka 이벤트 연동(`PENDING → ACTIVE`) · AI 추천 · 만족도 조사 · 비밀번호 재설정 |
+
+Sprint 2 에서 결제·이벤트를 새로 추가할 때 Sprint 1 의 회원·과목·수강신청 서비스는 **손대지 않았다.**
+기능이 독립된 서비스(MSA)로 분리돼 있어, Agile 의 "점진적 확장"과 MSA 의 "독립 배포"가 맞물리는 지점이다.
+
+<br/>
+
 ## 🏗️ 아키텍처
 
 Spring Cloud 기반 마이크로서비스 아키텍처.
@@ -40,8 +64,9 @@ Spring Cloud 기반 마이크로서비스 아키텍처.
 서비스는 **Eureka** 에 등록되어 이름으로 서로를 호출하고, **수강신청과 결제는 Kafka 이벤트로 느슨하게 결합**된다.
 
 ```mermaid
+%%{init: {'flowchart': {'curve': 'linear', 'nodeSpacing': 55, 'rankSpacing': 70}}}%%
 flowchart TB
-    FE["🖥️ Vue 3 프론트엔드 · :3000"]
+    FE["Vue 3 프론트엔드 · :3000"]
     subgraph edge["게이트웨이 · 인증 계층"]
         direction LR
         GW["API Gateway<br/>:8080 · 단일 진입"]
@@ -67,10 +92,10 @@ flowchart TB
     COURSE --> DB
     ENROLL --> DB
     PAY --> DB
-    ENROLL -. 결제요청 발행 .-> KAFKA
-    KAFKA -. 구독 .-> PAY
-    PAY -. 결제완료 발행 .-> KAFKA
-    KAFKA -. 구독 .-> ENROLL
+    ENROLL -.->|결제요청 발행| KAFKA
+    KAFKA -.->|구독| PAY
+    PAY -.->|결제완료 발행| KAFKA
+    KAFKA -.->|구독| ENROLL
 
     classDef edgeNode fill:#c8102e,stroke:#c8102e,color:#fff;
     classDef domainNode fill:#fff,stroke:#c8102e,color:#111;
