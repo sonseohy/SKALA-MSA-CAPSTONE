@@ -7,7 +7,7 @@
 
 <br/>
 
-## 📌 프로젝트 개요
+## 프로젝트 개요
 
 HRD 담당자는 교육 하나를 도입하기까지 여러 번 맥락을 갈아탄다.
 
@@ -31,7 +31,7 @@ HRD 담당자는 교육 하나를 도입하기까지 여러 번 맥락을 갈아
 
 <br/>
 
-## 👥 팀 구성
+## 팀 구성
 
 | 역할 | 담당 |
 | :--- | :--- |
@@ -42,7 +42,7 @@ HRD 담당자는 교육 하나를 도입하기까지 여러 번 맥락을 갈아
 
 <br/>
 
-## 🗂️ 스프린트 구성 (Agile)
+## 스프린트 구성 (Agile)
 
 핵심 가치가 끝까지 동작하는 최소 버전(MVP)을 **Sprint 1** 에서 완성하고,
 결제·이벤트 같은 확장 기능을 **Sprint 2** 에서 점진적으로 덧붙였다.
@@ -57,53 +57,13 @@ Sprint 2 에서 결제·이벤트를 새로 추가할 때 Sprint 1 의 회원·�
 
 <br/>
 
-## 🏗️ 아키텍처
+## 아키텍처
 
 Spring Cloud 기반 마이크로서비스 아키텍처.
 모든 요청은 **API Gateway(:8080)** 단일 진입점을 지나 JWT 검증을 거친 뒤 각 서비스로 라우팅된다.
 서비스는 **Eureka** 에 등록되어 이름으로 서로를 호출하고, **수강신청과 결제는 Kafka 이벤트로 느슨하게 결합**된다.
 
-```mermaid
-%%{init: {'flowchart': {'curve': 'linear', 'nodeSpacing': 55, 'rankSpacing': 70}}}%%
-flowchart TB
-    FE["Vue 3 프론트엔드 · :3000"]
-    subgraph edge["게이트웨이 · 인증 계층"]
-        direction LR
-        GW["API Gateway<br/>:8080 · 단일 진입"]
-        AUTH["Auth Server<br/>:9000 · OAuth2"]
-        EUREKA["Eureka<br/>:8761 · 디스커버리"]
-    end
-    subgraph domain["도메인 마이크로서비스"]
-        direction LR
-        USER["user<br/>:8081 · 회원·인증"]
-        COURSE["course<br/>:8082 · 카탈로그"]
-        ENROLL["enrollment<br/>:8083 · 수강신청·만족도"]
-        PAY["payment<br/>:8084 · 결제"]
-        REC["recommend<br/>:8085 · FastAPI 추천"]
-    end
-    DB[("MariaDB · :3379")]
-    KAFKA{{"Kafka · 이벤트 브로커"}}
-
-    FE -->|"모든 요청 · JWT"| GW
-    GW -->|검증| AUTH
-    GW <-.->|디스커버리| EUREKA
-    GW ==>|라우팅| domain
-    USER --> DB
-    COURSE --> DB
-    ENROLL --> DB
-    PAY --> DB
-    ENROLL -.->|결제요청 발행| KAFKA
-    KAFKA -.->|구독| PAY
-    PAY -.->|결제완료 발행| KAFKA
-    KAFKA -.->|구독| ENROLL
-
-    classDef edgeNode fill:#c8102e,stroke:#c8102e,color:#fff;
-    classDef domainNode fill:#fff,stroke:#c8102e,color:#111;
-    classDef infraNode fill:#f4f4f5,stroke:#9ca3af,color:#111;
-    class GW,AUTH,EUREKA edgeNode;
-    class USER,COURSE,ENROLL,PAY,REC domainNode;
-    class DB,KAFKA infraNode;
-```
+![시스템 아키텍처](docs/architecture.png)
 
 | 서비스 | 포트 | 스택 | 책임 |
 | :--- | :--- | :--- | :--- |
@@ -120,35 +80,25 @@ flowchart TB
 
 <br/>
 
-## ⚡ 이벤트 드리븐 결제 (Sprint 2)
+## 이벤트 드리븐 결제 (Sprint 2)
 
 수강신청은 결제를 **동기 호출로 기다리지 않는다.**
 신청 즉시 `PENDING` 으로 응답하고, Kafka 결제 완료 이벤트를 받으면 약 3~4초 뒤 `ACTIVE` 로 자동 전환된다.
 덕분에 결제 서비스에 장애가 나도 신청 자체는 막히지 않는다.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant FE as 프론트엔드
-    participant EN as enrollment-service
-    participant K as Kafka
-    participant PAY as payment-service
-
-    FE->>EN: POST /api/enrollments
-    EN->>EN: enrollment 생성 (status = PENDING)
-    EN-->>FE: 202 · 신청 접수
-    EN--)K: 결제요청 이벤트 발행
-    K--)PAY: 결제요청 구독
-    PAY->>PAY: 결제 처리
-    PAY--)K: 결제완료 이벤트 발행
-    K--)EN: 결제완료 구독
-    EN->>EN: status PENDING → ACTIVE
-    Note over FE,EN: 프론트가 상태를 폴링해 ACTIVE 확인 (약 3~4초)
-```
+![이벤트 드리븐 결제 시퀀스](docs/event-sequence.png)
 
 <br/>
 
-## ✨ 핵심 기능
+## 데이터 모델 (ERD)
+
+6개 테이블. `users` 를 중심으로 교육 과정·수강신청·결제가 외래키로 연결되고, 만족도(surveys)와 비밀번호 재설정 토큰은 서비스 간 논리 참조로 이어진다.
+
+![데이터 모델 ERD](docs/erd.png)
+
+<br/>
+
+## 핵심 기능
 
 - **OAuth2 인증** — 인증 서버 경유 로그인, 회원가입, 비밀번호 재설정(이메일+이름 확인 → 재설정 링크)
 - **교육 니즈 입력 → AI 추천** — 수강 이력의 최빈 분야를 분석해 미수강 과정을 인기순으로 추천 (규칙 기반, 콜드스타트 폴백)
@@ -159,7 +109,28 @@ sequenceDiagram
 
 <br/>
 
-## 📂 저장소 구조
+## AI 추천 원리
+
+`recommend-service`(FastAPI)는 학습된 모델 없이 **규칙 기반(rule-based)** 으로 동작한다.
+데이터가 없는 신규 사용자에게도 결과를 낼 수 있고(콜드스타트에 강함), "왜 이 과정을 추천했는가"를 설명할 수 있는 것이 장점이다.
+추천에 필요한 데이터는 자체 DB가 아니라 **다른 서비스를 호출해** 모으므로, 추천 로직만 독립적으로 배포·교체할 수 있다.
+
+![AI 추천 로직](docs/recommend-flow.png)
+
+동작을 순서대로 풀면:
+
+1. **수강 이력 조회** — `enrollment-service`에서 사용자의 `ACTIVE` 수강 과정 ID 목록을 가져온다.
+2. **콜드스타트 폴백** — 이력이 없으면, 전체 과정을 수강생 수(`enrollment_count`) 기준 내림차순으로 정렬해 **인기 과정**을 추천한다.
+3. **관심 분야 추정** — 이력이 있으면, `course-service`에서 수강한 과정들의 카테고리를 집계해 **가장 많이 들은 분야(최빈 카테고리)** 를 고른다.
+4. **미수강 과정 선별** — 그 카테고리에서 **아직 듣지 않은** 과정만 골라 인기순으로 정렬한다(이미 수강한 과정은 제외).
+5. **상위 N개 반환** — 최대 5개를 추천 사유(기준 카테고리)와 함께 응답한다.
+
+> 한 줄 요약 — "가장 많이 들은 분야에서, 아직 안 들은 인기 과정"을 제안한다.
+> 규칙이 단순해 결과가 예측 가능하며, 이후 협업 필터링·임베딩 기반 추천으로 이 서비스만 교체해 고도화할 수 있다.
+
+<br/>
+
+## 저장소 구조
 
 ```
 SKALA-MSA-CAPSTONE/
@@ -179,7 +150,7 @@ SKALA-MSA-CAPSTONE/
 │       ├── utils/          # 도메인 헬퍼
 │       └── views/          # 페이지 단위 화면
 ├── init-db/                # DB 초기화 스크립트
-├── docs/                   # 스크린샷 등 문서 자산
+├── docs/                   # 다이어그램·스크린샷 등 문서 자산
 ├── docker-compose.yml      # 전체 스택 오케스트레이션
 └── README.md
 ```
@@ -191,7 +162,7 @@ SKALA-MSA-CAPSTONE/
 
 <br/>
 
-## 🚀 실행
+## 실행
 
 **사전 요구사항** · Docker Desktop · JDK 21 · Node 18+
 강의 배포 이미지(`msa-lecture/auth-server:1.0`, `msa-lecture/api-gateway:1.0`, `msa-lecture-*:latest`)가 로컬 Docker 에 로드돼 있어야 한다.
@@ -226,7 +197,7 @@ npm run dev               # http://localhost:3000
 
 <br/>
 
-## 📡 주요 API
+## 주요 API
 
 | Method | URL | 서비스 | 설명 |
 | :--- | :--- | :--- | :--- |
@@ -249,7 +220,7 @@ npm run dev               # http://localhost:3000
 
 <br/>
 
-## 🛠️ 기술 스택
+## 기술 스택
 
 | 영역 | 기술 |
 | :--- | :--- |
@@ -263,7 +234,7 @@ npm run dev               # http://localhost:3000
 
 <br/>
 
-## 🖼️ 화면
+## 화면
 
 ### 1. 로그인
 OAuth2 인증 서버를 경유하는 로그인 화면. 회원가입·비밀번호 재설정 진입점을 함께 제공한다.
