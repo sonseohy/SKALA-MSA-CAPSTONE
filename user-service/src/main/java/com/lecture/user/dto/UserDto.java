@@ -3,7 +3,7 @@ package com.lecture.user.dto;
 import com.lecture.user.entity.User;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,6 +12,15 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 public class UserDto {
+
+    /**
+     * 비밀번호 정책: 8자 이상 · 영문 대문자 1개 이상 · 특수문자 1개 이상.
+     * 전방탐색으로 각 조건을 독립 검사한다 — (?=.*[A-Z]) 대문자, (?=.*[^A-Za-z0-9]) 특수문자, .{8,} 길이.
+     * 프론트엔드 utils/password.js 의 규칙과 반드시 동일하게 유지한다(한쪽만 바꾸면 검증이 어긋난다).
+     */
+    private static final String PASSWORD_PATTERN = "^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{8,}$";
+    private static final String PASSWORD_MESSAGE =
+            "비밀번호는 8자 이상이며 영문 대문자와 특수문자를 각각 1개 이상 포함해야 합니다";
 
     // 회원가입 요청
     @Getter
@@ -24,7 +33,7 @@ public class UserDto {
         private String email;
 
         @NotBlank(message = "비밀번호는 필수입니다")
-        @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다")
+        @Pattern(regexp = PASSWORD_PATTERN, message = PASSWORD_MESSAGE)
         private String password;
 
         @NotBlank(message = "이름은 필수입니다")
@@ -71,7 +80,7 @@ public class UserDto {
         private String token;
 
         @NotBlank(message = "새 비밀번호는 필수입니다")
-        @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다")
+        @Pattern(regexp = PASSWORD_PATTERN, message = PASSWORD_MESSAGE)
         private String newPassword;
     }
 

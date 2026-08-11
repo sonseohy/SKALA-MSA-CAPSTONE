@@ -1,69 +1,181 @@
 # LearnNexus HRD
 
-> 기업 교육 기획·매칭 통합 플랫폼 — 사업계획에서 교육 니즈로, AI 추천에서 계약·결제·만족도까지 하나의 흐름으로.
-> **SKALA MSA Capstone** · Agile 방법론 및 MSA 개발
+> **기업 교육 기획·매칭 통합 플랫폼**
+> 사업계획에서 교육 니즈로, AI 추천에서 계약·결제·만족도까지 — 하나의 흐름으로.
+>
+> SKALA MSA Capstone · Agile 방법론 및 마이크로서비스 아키텍처
 
-HRD 담당자는 흩어진 공급자·과정 정보 속에서 교육을 찾고, 일정·방식·지역·교육비를 일일이 비교하고, 신청·결제·확정·만족도를 엑셀과 메일로 관리한다. LearnNexus HRD는 이 파편화된 과정을 **하나의 워크스페이스**로 묶는다. 사업계획을 입력하면 교육 니즈를 뽑고, 수강 이력을 근거로 과정을 추천하고, 계약과 결제, 만족도까지 한 화면에서 이어진다.
+<br/>
 
----
+## 📌 프로젝트 개요
 
-## 팀 구성
+HRD 담당자는 교육 하나를 도입하기까지 여러 번 맥락을 갈아탄다.
+
+- 흩어진 공급자·과정 정보 속에서 **교육을 검색**하고,
+- 일정·방식·지역·교육비를 **일일이 비교**하고,
+- 신청·결제·확정·만족도를 **엑셀과 메일로 관리**한다.
+
+**LearnNexus HRD** 는 이 파편화된 과정을 하나의 워크스페이스로 묶는다.
+
+사업계획을 입력하면 **교육 니즈**를 도출하고, 수강 이력을 근거로 **과정을 추천**하고,
+**계약·결제·만족도**까지 한 화면에서 자연스럽게 이어진다.
+
+<br/>
+
+## 👥 팀 구성
 
 | 역할 | 담당 |
-| --- | --- |
+| :--- | :--- |
 | 프론트엔드 | 신주용, 정다운 |
 | 백엔드 | 최도한, 손서현 |
 | 발표자료(PPT) | 유덕현 |
 | 발표 | 김지원 |
 
----
+<br/>
 
-## 아키텍처
+## 🏗️ 아키텍처
 
-![아키텍처 구성도](docs/arch.png)
+Spring Cloud 기반 마이크로서비스 아키텍처.
+모든 요청은 **API Gateway(:8080)** 단일 진입점을 지나 JWT 검증을 거친 뒤 각 서비스로 라우팅된다.
+서비스는 **Eureka** 에 등록되어 이름으로 서로를 호출하고, **수강신청과 결제는 Kafka 이벤트로 느슨하게 결합**된다.
 
-Spring Cloud 기반 MSA. 모든 요청은 **API Gateway(:8080)** 단일 진입점을 지나 JWT 검증 후 각 서비스로 라우팅된다. 서비스는 **Eureka**에 등록되어 이름으로 서로를 호출하고, 수강신청과 결제는 **Kafka 이벤트**로 느슨하게 결합된다.
+```mermaid
+flowchart TB
+    FE["🖥️ Vue 3 프론트엔드 · :3000"]
+    subgraph edge["게이트웨이 · 인증 계층"]
+        direction LR
+        GW["API Gateway<br/>:8080 · 단일 진입"]
+        AUTH["Auth Server<br/>:9000 · OAuth2"]
+        EUREKA["Eureka<br/>:8761 · 디스커버리"]
+    end
+    subgraph domain["도메인 마이크로서비스"]
+        direction LR
+        USER["user<br/>:8081 · 회원·인증"]
+        COURSE["course<br/>:8082 · 카탈로그"]
+        ENROLL["enrollment<br/>:8083 · 수강신청·만족도"]
+        PAY["payment<br/>:8084 · 결제"]
+        REC["recommend<br/>:8085 · FastAPI 추천"]
+    end
+    DB[("MariaDB · :3379")]
+    KAFKA{{"Kafka · 이벤트 브로커"}}
 
-| 서비스 | 포트 | 스택 | 담당 |
-| --- | --- | --- | --- |
-| api-gateway | 8080 | Spring Cloud Gateway | 단일 진입점·라우팅·JWT 검증 |
+    FE -->|"모든 요청 · JWT"| GW
+    GW -->|검증| AUTH
+    GW <-.->|디스커버리| EUREKA
+    GW ==>|라우팅| domain
+    USER --> DB
+    COURSE --> DB
+    ENROLL --> DB
+    PAY --> DB
+    ENROLL -. 결제요청 발행 .-> KAFKA
+    KAFKA -. 구독 .-> PAY
+    PAY -. 결제완료 발행 .-> KAFKA
+    KAFKA -. 구독 .-> ENROLL
+
+    classDef edgeNode fill:#c8102e,stroke:#c8102e,color:#fff;
+    classDef domainNode fill:#fff,stroke:#c8102e,color:#111;
+    classDef infraNode fill:#f4f4f5,stroke:#9ca3af,color:#111;
+    class GW,AUTH,EUREKA edgeNode;
+    class USER,COURSE,ENROLL,PAY,REC domainNode;
+    class DB,KAFKA infraNode;
+```
+
+| 서비스 | 포트 | 스택 | 책임 |
+| :--- | :--- | :--- | :--- |
+| api-gateway | 8080 | Spring Cloud Gateway | 단일 진입점 · 라우팅 · JWT 검증 |
 | auth-server | 9000 | Spring Authorization Server | OAuth2 발급·검증 |
 | eureka-server | 8761 | Spring Cloud Netflix | 서비스 디스커버리 |
-| user-service | 8081 | Spring Boot | 회원·인증·프로필·비밀번호 재설정 |
+| user-service | 8081 | Spring Boot | 회원 · 인증 · 프로필 · 비밀번호 재설정 |
 | course-service | 8082 | Spring Boot | 교육 카탈로그 |
-| enrollment-service | 8083 | Spring Boot | 수강신청·계약·만족도 |
+| enrollment-service | 8083 | Spring Boot | 수강신청 · 계약 · 만족도 |
 | payment-service | 8084 | Spring Boot | 결제 |
 | recommend-service | 8085 | **FastAPI** | 규칙 기반 추천 |
-| kafka / mariadb | — | Confluent / MariaDB | 이벤트 브로커 / 저장소 |
 
-### 이벤트 드리븐 결제 (Sprint 2)
+> `api-gateway` 와 `auth-server` 는 강의에서 컨테이너 이미지로만 배포되어 소스가 저장소에 포함되지 않는다.
 
-![이벤트 시퀀스](docs/kafka_seq.png)
+<br/>
 
-수강신청은 동기 호출이 아니라 이벤트로 결제와 분리된다. 결제 서비스 장애가 신청 자체를 막지 않는다. 신청 직후 `PENDING`, Kafka 결제 완료 이벤트를 받으면 약 3~4초 뒤 `ACTIVE`로 자동 전환된다.
+## ⚡ 이벤트 드리븐 결제 (Sprint 2)
 
----
+수강신청은 결제를 **동기 호출로 기다리지 않는다.**
+신청 즉시 `PENDING` 으로 응답하고, Kafka 결제 완료 이벤트를 받으면 약 3~4초 뒤 `ACTIVE` 로 자동 전환된다.
+덕분에 결제 서비스에 장애가 나도 신청 자체는 막히지 않는다.
 
-## 핵심 기능
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as 프론트엔드
+    participant EN as enrollment-service
+    participant K as Kafka
+    participant PAY as payment-service
 
-- **OAuth2 인증** — 인증 서버 경유 로그인, 회원가입, **비밀번호 재설정**(이메일+이름 확인 → 재설정 링크)
-- **교육 니즈 입력 → AI 추천** — 수강 이력의 최빈 분야를 분석해 미수강 과정을 인기순으로 추천(recommend-service, 규칙 기반)
+    FE->>EN: POST /api/enrollments
+    EN->>EN: enrollment 생성 (status = PENDING)
+    EN-->>FE: 202 · 신청 접수
+    EN--)K: 결제요청 이벤트 발행
+    K--)PAY: 결제요청 구독
+    PAY->>PAY: 결제 처리
+    PAY--)K: 결제완료 이벤트 발행
+    K--)EN: 결제완료 구독
+    EN->>EN: status PENDING → ACTIVE
+    Note over FE,EN: 프론트가 상태를 폴링해 ACTIVE 확인 (약 3~4초)
+```
+
+<br/>
+
+## ✨ 핵심 기능
+
+- **OAuth2 인증** — 인증 서버 경유 로그인, 회원가입, 비밀번호 재설정(이메일+이름 확인 → 재설정 링크)
+- **교육 니즈 입력 → AI 추천** — 수강 이력의 최빈 분야를 분석해 미수강 과정을 인기순으로 추천 (규칙 기반, 콜드스타트 폴백)
 - **교육 카탈로그** — 분야·방식·지역 필터, 검색, 정렬, 페이지네이션. 일정·기간·난이도까지 비교
 - **수강신청 → 결제 → 확정** — Kafka 이벤트로 상태가 `PENDING → ACTIVE` 자동 전환
-- **만족도 조사** — 교육·강사·업무 활용도·난이도 4개 지표 + 의견, 응답률·평균·후속 조치 집계
-- **교육 공급자** — 공급자 대시보드(본인 프로그램만 집계), 프로그램 등록(일정 필드 포함), 프로필 수정
+- **만족도 조사** — 교육·강사·업무 활용도·난이도 4개 지표 + 의견, 응답률·평균 집계
+- **교육 공급자** — 본인 프로그램만 집계하는 대시보드, 프로그램 등록(일정 필드 포함), 프로필 수정
 
----
+<br/>
 
-## 실행
+## 📂 저장소 구조
 
-전제 : Docker Desktop · JDK 21 · Node 18+. 강의 배포 이미지(`msa-lecture/auth-server:1.0`, `msa-lecture/api-gateway:1.0`, `msa-lecture-*:latest`)가 로컬 Docker 에 로드돼 있어야 한다(auth-server·api-gateway 는 소스가 아니라 이미지로만 제공됨).
+```
+SKALA-MSA-CAPSTONE/
+├── eureka-server/          # 서비스 디스커버리 (Spring Cloud Netflix)
+├── user-service/           # 회원·인증·프로필·비밀번호 재설정
+├── course-service/         # 교육 카탈로그
+├── enrollment-service/     # 수강신청·계약·만족도
+├── payment-service/        # 결제 (Kafka 이벤트 소비)
+├── recommend-service/      # 규칙 기반 추천 (FastAPI)
+├── vue-frontend/           # Vue 3 SPA
+│   └── src/
+│       ├── api/            # Axios API 클라이언트
+│       ├── components/     # 공통 UI 컴포넌트
+│       ├── composables/    # 재사용 로직 (공급자명 해석 등)
+│       ├── router/         # 라우트 정의·인증 가드
+│       ├── store/          # Pinia 상태 (인증)
+│       ├── utils/          # 도메인 헬퍼
+│       └── views/          # 페이지 단위 화면
+├── init-db/                # DB 초기화 스크립트
+├── docs/                   # 스크린샷 등 문서 자산
+├── docker-compose.yml      # 전체 스택 오케스트레이션
+└── README.md
+```
+
+각 Spring Boot 서비스는 동일한 레이어드 구조를 따른다 —
+`controller`(API) · `service`(도메인 로직) · `repository`(영속성) · `entity`(도메인 모델) · `dto`(전송 객체) · `config`(설정).
+
+> `api-gateway`, `auth-server` 는 이미지로만 제공되어 소스 디렉터리가 없다.
+
+<br/>
+
+## 🚀 실행
+
+**사전 요구사항** · Docker Desktop · JDK 21 · Node 18+
+강의 배포 이미지(`msa-lecture/auth-server:1.0`, `msa-lecture/api-gateway:1.0`, `msa-lecture-*:latest`)가 로컬 Docker 에 로드돼 있어야 한다.
 
 ```bash
 # 1) 전체 스택 기동
 docker compose up -d
 
-# 2) 도메인 서비스는 소스에서 재빌드해 반영 (course/user/enrollment)
+# 2) 도메인 서비스는 소스에서 재빌드해 반영 (course / user / enrollment)
 docker build -t msa-lecture-course-service:latest ./course-service
 docker build -t msa-lecture-user-service:latest ./user-service
 docker build -t msa-lecture-enrollment-service:latest ./enrollment-service
@@ -71,78 +183,109 @@ docker compose up -d --no-build --pull never course-service user-service enrollm
 
 # 3) 프론트엔드
 cd vue-frontend
-cp .env.example .env          # 게이트웨이·OAuth 설정 (필수)
+cp .env.example .env      # 게이트웨이·OAuth 설정 (필수)
 npm install
-npm run dev                   # http://localhost:3000
+npm run dev               # http://localhost:3000
 ```
 
-> `.env` 가 없으면 OAuth 시크릿이 없어 로그인이 안 된다(시크릿을 번들에 하드코딩하지 않기 위한 의도).
+> `.env` 가 없으면 OAuth 시크릿이 없어 로그인이 되지 않는다 (시크릿을 번들에 하드코딩하지 않기 위한 의도).
 
-### 데모 계정 (바로 로그인 가능)
+### 데모 계정
 
 | 역할 | 이메일 | 비밀번호 |
-| --- | --- | --- |
+| :--- | :--- | :--- |
 | HRD 담당자 | `hrd@skala.com` | `Skala1234!` |
 | 교육 공급자 | `prov1@skala.com` | `Skala1234!` |
 
-> 시드 데모 데이터의 대표 계정. 회원가입으로 새 계정을 만들어도 된다.
+> 시드 데이터의 대표 계정. 회원가입으로 새 계정을 만들어도 된다.
 
----
+<br/>
 
-## 주요 API
+## 📡 주요 API
 
 | Method | URL | 서비스 | 설명 |
-| --- | --- | --- | --- |
-| POST | `/api/users/register` | user | 회원가입 |
-| GET | `/api/users/me` | user | 내 정보 |
-| PUT | `/api/users/{id}` | user | 프로필 수정 (본인만) |
-| POST | `/api/users/password/reset-request` | user | 비밀번호 재설정 요청 |
-| POST | `/api/users/password/reset-confirm` | user | 비밀번호 재설정 확정 |
-| GET | `/api/courses` | course | 교육 목록 |
-| GET | `/api/courses/{id}` | course | 교육 상세 |
-| POST | `/api/courses` | course | 교육 등록(공급자) |
-| GET | `/api/recommend/{userId}` | recommend | AI 추천 |
-| POST | `/api/enrollments` | enrollment | 수강신청 |
-| GET | `/api/enrollments/my` | enrollment | 내 수강/계약 |
-| POST | `/api/enrollments/{id}/survey` | enrollment | 만족도 제출 |
-| GET | `/api/enrollments/courses/{id}/surveys/summary` | enrollment | 만족도 집계 |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/users/register` | user | 회원가입 |
+| `GET` | `/api/users/me` | user | 내 정보 |
+| `PUT` | `/api/users/{id}` | user | 프로필 수정 (본인만) |
+| `POST` | `/api/users/password/reset-request` | user | 비밀번호 재설정 요청 |
+| `POST` | `/api/users/password/reset-confirm` | user | 비밀번호 재설정 확정 |
+| `GET` | `/api/courses` | course | 교육 목록 |
+| `GET` | `/api/courses/{id}` | course | 교육 상세 |
+| `POST` | `/api/courses` | course | 교육 등록 (공급자) |
+| `GET` | `/api/recommend/{userId}` | recommend | AI 추천 |
+| `POST` | `/api/enrollments` | enrollment | 수강신청 |
+| `GET` | `/api/enrollments/my` | enrollment | 내 수강/계약 |
+| `POST` | `/api/enrollments/{id}/survey` | enrollment | 만족도 제출 |
+| `GET` | `/api/enrollments/courses/{id}/surveys/summary` | enrollment | 만족도 집계 |
 
-보호 API는 모두 `Authorization: Bearer <JWT>`. 게이트웨이가 검증한다.
-Swagger UI : 각 서비스 `/swagger-ui/index.html`.
+> 보호 API 는 모두 `Authorization: Bearer <JWT>` 를 요구하며 게이트웨이가 검증한다.
+> Swagger UI · 각 서비스 `/swagger-ui/index.html`
 
----
+<br/>
 
-## 기술 스택
+## 🛠️ 기술 스택
 
-**프론트** Vue 3 (Composition API) · Pinia · Vue Router · Vite · Axios
-**백엔드** Spring Boot · Spring Cloud (Gateway·Eureka) · Spring Authorization Server · FastAPI
-**인프라** OAuth2 · Kafka · MariaDB · Docker Compose
+| 영역 | 기술 |
+| :--- | :--- |
+| **프론트엔드** | Vue 3 (Composition API) · Pinia · Vue Router · Vite · Axios |
+| **백엔드** | Spring Boot 3 · Spring Cloud Gateway · Spring Cloud Netflix Eureka · Spring Authorization Server |
+| **추천 서비스** | FastAPI (Python) |
+| **데이터 · 메시징** | MariaDB · Apache Kafka |
+| **인증** | OAuth2 · JWT |
+| **인프라** | Docker · Docker Compose |
+| **빌드** | Gradle (백엔드) · Vite / npm (프론트엔드) |
 
----
+<br/>
 
-## 화면
+## 🖼️ 화면
 
-### 인증 · 대시보드
-| 로그인 | HRD 대시보드 |
-| --- | --- |
-| ![로그인](docs/screenshots/01-login.png) | ![HRD 대시보드](docs/screenshots/02-hrd-dashboard.png) |
+### 1. 로그인
+OAuth2 인증 서버를 경유하는 로그인 화면. 회원가입·비밀번호 재설정 진입점을 함께 제공한다.
 
-### 교육 기획 · 추천
-| 교육 니즈 입력 | AI 추천 |
-| --- | --- |
-| ![교육 니즈](docs/screenshots/03-needs.png) | ![AI 추천](docs/screenshots/04-recommend.png) |
+![로그인](docs/screenshots/01-login.png)
 
-### 카탈로그 · 상세
-| 교육 카탈로그 | 교육 상세 |
-| --- | --- |
-| ![카탈로그](docs/screenshots/05-catalog.png) | ![교육 상세](docs/screenshots/06-course-detail.png) |
+### 2. HRD 대시보드
+담당자의 교육 현황을 한눈에 — 진행 중인 계약, 수강 인원, 만족도 요약.
 
-### 계약 · 만족도
-| 계약/신청 | 만족도 조사 |
-| --- | --- |
-| ![계약/신청](docs/screenshots/07-enrollments.png) | ![만족도](docs/screenshots/08-survey.png) |
+![HRD 대시보드](docs/screenshots/02-hrd-dashboard.png)
 
-### 교육 공급자
-| 공급자 대시보드 | 공급자 프로필 |
-| --- | --- |
-| ![공급자 대시보드](docs/screenshots/09-provider-dashboard.png) | ![공급자 프로필](docs/screenshots/10-provider-profile.png) |
+### 3. 교육 니즈 입력
+사업계획·직무를 입력해 필요한 교육 분야를 도출하는 화면.
+
+![교육 니즈 입력](docs/screenshots/03-needs.png)
+
+### 4. AI 추천
+수강 이력의 최빈 분야를 근거로 미수강 과정을 인기순으로 추천한다.
+
+![AI 추천](docs/screenshots/04-recommend.png)
+
+### 5. 교육 카탈로그
+분야·방식·지역 필터와 검색·정렬·페이지네이션을 갖춘 과정 목록.
+
+![교육 카탈로그](docs/screenshots/05-catalog.png)
+
+### 6. 교육 상세
+일정·기간·방식·지역·난이도·교육비 등 운영 정보를 비교하고 신청한다.
+
+![교육 상세](docs/screenshots/06-course-detail.png)
+
+### 7. 계약 · 수강신청
+신청 → 결제 → 확정으로 이어지는 계약 목록. 상태가 `PENDING → ACTIVE` 로 전환된다.
+
+![계약·수강신청](docs/screenshots/07-enrollments.png)
+
+### 8. 만족도 조사
+교육·강사·업무 활용도·난이도를 5점 척도로 평가하고 의견을 남긴다.
+
+![만족도 조사](docs/screenshots/08-survey.png)
+
+### 9. 공급자 대시보드
+교육 공급자가 본인 프로그램의 신청·수강 현황만 모아 보는 화면.
+
+![공급자 대시보드](docs/screenshots/09-provider-dashboard.png)
+
+### 10. 공급자 프로필
+공급자 소개·연락처를 관리하는 프로필 수정 화면.
+
+![공급자 프로필](docs/screenshots/10-provider-profile.png)
