@@ -7,7 +7,9 @@
 
 <br/>
 
-![LearnNexus HRD 메인 화면](docs/screenshots/00-landing.png)
+[![LearnNexus HRD 시연 영상 — 클릭하여 재생](docs/demo-thumb.png)](https://youtu.be/Uq5uXnrd7jU)
+
+<sub>위 이미지를 클릭하면 전체 시연 영상(2분 29초)이 재생됩니다 · <a href="https://youtu.be/Uq5uXnrd7jU">YouTube에서 보기</a></sub>
 
 <br/>
 
