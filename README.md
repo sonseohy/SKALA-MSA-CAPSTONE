@@ -197,7 +197,8 @@ npm install
 npm run dev               # http://localhost:3000
 ```
 
-> `.env` 가 없으면 OAuth 시크릿이 없어 로그인이 되지 않는다 (시크릿을 번들에 하드코딩하지 않기 위한 의도).
+> `.env` 는 게이트웨이 주소 · OAuth `client-id` · `redirect-uri` 를 담는다.
+> `client_secret` 은 프론트에 두지 않는다 — user-service(BFF)가 서버에서 보관하며, 로그인 시 `POST /api/users/token` 으로 인가 코드를 토큰으로 교환한다.
 
 ### 데모 계정
 
@@ -215,16 +216,18 @@ npm run dev               # http://localhost:3000
 | Method | URL | 서비스 | 설명 |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/users/register` | user | 회원가입 |
+| `POST` | `/api/users/token` | user | 로그인 코드→토큰 교환 (BFF, 시크릿 서버 보관) |
 | `GET` | `/api/users/me` | user | 내 정보 |
+| `GET` | `/api/users` | user | 사용자·공급자 목록 (`?ids=`·`?role=`) |
 | `PUT` | `/api/users/{id}` | user | 프로필 수정 (본인만) |
 | `POST` | `/api/users/password/reset-request` | user | 비밀번호 재설정 요청 |
 | `POST` | `/api/users/password/reset-confirm` | user | 비밀번호 재설정 확정 |
-| `GET` | `/api/courses` | course | 교육 목록 |
+| `GET` | `/api/courses` | course | 교육 목록 (페이징·필터·정렬) |
 | `GET` | `/api/courses/{id}` | course | 교육 상세 |
 | `POST` | `/api/courses` | course | 교육 등록 (공급자) |
 | `GET` | `/api/recommend/{userId}` | recommend | 과정 추천 |
 | `POST` | `/api/enrollments` | enrollment | 수강신청 |
-| `GET` | `/api/enrollments/my` | enrollment | 내 수강/계약 |
+| `GET` | `/api/enrollments/my` | enrollment | 내 수강/계약 (페이징·만족도 제출 여부 포함) |
 | `POST` | `/api/enrollments/{id}/survey` | enrollment | 만족도 제출 |
 | `GET` | `/api/enrollments/courses/{id}/surveys/summary` | enrollment | 만족도 집계 |
 
