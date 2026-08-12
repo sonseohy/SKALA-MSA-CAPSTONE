@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,6 +56,28 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + id));
         return UserDto.UserResponse.from(user);
+    }
+
+    /**
+     * 사용자 목록 조회.
+     * ids/role 둘 다 주면 교집합, 하나만 주면 그 조건, 아무것도 없으면 전체.
+     * (강의 목록에 강사 이름을 붙일 때처럼 id 여러 건을 한 번에 조회하는 용도)
+     */
+    public List<UserDto.UserResponse> getUsers(List<Long> ids, User.Role role) {
+        boolean hasIds = ids != null && !ids.isEmpty();
+
+        List<User> users;
+        if (hasIds && role != null) {
+            users = userRepository.findByIdInAndRole(ids, role);
+        } else if (hasIds) {
+            users = userRepository.findAllById(ids);
+        } else if (role != null) {
+            users = userRepository.findByRole(role);
+        } else {
+            users = userRepository.findAll();
+        }
+
+        return users.stream().map(UserDto.UserResponse::from).toList();
     }
 
     /**

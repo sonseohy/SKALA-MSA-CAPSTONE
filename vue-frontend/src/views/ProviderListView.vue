@@ -15,7 +15,7 @@
 
     <section v-else-if="loadError" class="empty-panel">
       <h2>공급자 정보를 불러오지 못했습니다.</h2>
-      <p>교육 프로그램 목록을 조회할 수 없어 공급자를 모으지 못했습니다. 잠시 후 다시 시도해 주세요.</p>
+      <p>공급자 명단과 교육 프로그램 목록을 모두 조회하지 못했습니다. 잠시 후 다시 시도해 주세요.</p>
       <router-link to="/courses" class="btn btn-primary">카탈로그로 이동</router-link>
     </section>
 
@@ -109,8 +109,7 @@ import {
   avatarInitial,
   formatPrice,
   parseCourseDescription,
-  unwrapListResponse,
-  unwrapObjectResponse
+  unwrapListResponse
 } from '@/utils/hrd.js'
 
 const loading = ref(true)
@@ -142,9 +141,9 @@ const pager = usePagedList(filteredProviders, 9)
 
 const joinOr = (values, fallback) => (values.length ? values.join(', ') : fallback)
 
-// 공급자 목록 API 는 명세에 없다. 등록된 프로그램의 instructorId 를 모아
-// GET /api/users/{id} 로 이름을 채운다. 비교 항목은 04_development_direction.md:68
-// 이 "공급자 비교 정보"로 지정한 deliveryType·region·targetAudience·difficulty 를 쓴다.
+// 공급자 명단은 GET /api/users?role=INSTRUCTOR 로 받는다(프로그램을 아직 안 올린 공급자도 나온다).
+// 비교 항목은 04_development_direction.md:68 이 "공급자 비교 정보"로 지정한
+// deliveryType·region·targetAudience·difficulty 이며, 등록 프로그램에서 도출한다.
 function summarize(id, courses) {
   const uniq = (fn) => [...new Set(courses.map(fn).filter(Boolean))]
   const prices = courses.map(c => Number(c.price)).filter(Number.isFinite)
@@ -168,36 +167,38 @@ function summarize(id, courses) {
 }
 
 onMounted(async () => {
-  let courses = []
-  try {
-    courses = unwrapListResponse(await courseApi.getAll())
-  } catch (error) {
-    console.error('[ProviderList] 교육 목록 조회 실패:', error)
+  // 한쪽이 실패해도 나머지로 화면을 만든다. 이름만 없거나, 비교 정보만 없는 상태가 된다.
+  const [userRes, courseRes] = await Promise.allSettled([
+    userApi.getUsers({ role: 'INSTRUCTOR' }),
+    courseApi.getAll()
+  ])
+
+  if (userRes.status === 'rejected') console.error('[ProviderList] 공급자 목록 조회 실패:', userRes.reason)
+  if (courseRes.status === 'rejected') console.error('[ProviderList] 교육 목록 조회 실패:', courseRes.reason)
+
+  if (userRes.status === 'rejected' && courseRes.status === 'rejected') {
     loadError.value = true
     loading.value = false
     return
   }
 
-  const byProvider = new Map()
-  for (const course of courses) {
-    const id = Number(course.instructorId)
-    if (!Number.isFinite(id)) continue
-    if (!byProvider.has(id)) byProvider.set(id, [])
-    byProvider.get(id).push(course)
+  const names = new Map()
+  if (userRes.status === 'fulfilled') {
+    for (const user of unwrapListResponse(userRes.value)) names.set(Number(user.id), user.name)
   }
 
-  // 이름 조회가 실패해도 목록 자체는 살린다.
-  const results = await Promise.allSettled(
-    [...byProvider.keys()].map(id => userApi.getById(id))
-  )
-
-  providers.value = [...byProvider.entries()].map(([id, list], index) => {
-    const res = results[index]
-    if (res.status === 'rejected') {
-      console.error(`[ProviderList] 공급자 ${id} 조회 실패:`, res.reason)
+  const byProvider = new Map([...names.keys()].map(id => [id, []]))
+  if (courseRes.status === 'fulfilled') {
+    for (const course of unwrapListResponse(courseRes.value)) {
+      const id = Number(course.instructorId)
+      if (!Number.isFinite(id)) continue
+      if (!byProvider.has(id)) byProvider.set(id, [])
+      byProvider.get(id).push(course)
     }
-    const user = res.status === 'fulfilled' ? unwrapObjectResponse(res.value) : null
-    const name = user?.name || `공급자 #${id}`
+  }
+
+  providers.value = [...byProvider.entries()].map(([id, list]) => {
+    const name = names.get(id) || `공급자 #${id}`
     return { ...summarize(id, list), name, initial: avatarInitial(name), color: avatarColor(name) }
   }).sort((a, b) => b.programCount - a.programCount)
 

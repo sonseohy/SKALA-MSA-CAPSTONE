@@ -13,4 +13,7 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
 
     /** 강의별 만족도 집계 계산용 원본 목록 조회. */
     List<Survey> findByCourseId(Long courseId);
+
+    /** 내 수강 목록의 만족도 제출 여부를 한 번에 판별하기 위한 배치 조회 (건별 조회로 인한 N+1 방지). */
+    List<Survey> findByUserIdAndEnrollmentIdIn(Long userId, List<Long> enrollmentIds);
 }

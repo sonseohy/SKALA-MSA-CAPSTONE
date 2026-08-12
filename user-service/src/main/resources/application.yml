@@ -29,6 +29,12 @@ spring:
           jwk-set-uri: http://localhost:9000/oauth2/jwks
           issuer-uri: http://localhost:9000
 
+# BFF 토큰 교환용 auth-server 정보 (env override: OAUTH_TOKEN_URI / OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET)
+oauth:
+  token-uri: http://auth-server:9000/oauth2/token
+  client-id: web-client
+  client-secret: web-secret
+
 eureka:
   client:
     service-url:

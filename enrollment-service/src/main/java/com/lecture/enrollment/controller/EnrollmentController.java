@@ -2,10 +2,14 @@ package com.lecture.enrollment.controller;
 
 import com.lecture.enrollment.dto.EnrollmentDto;
 import com.lecture.enrollment.dto.SurveyDto;
+import com.lecture.enrollment.entity.Enrollment;
 import com.lecture.enrollment.service.EnrollmentService;
 import com.lecture.enrollment.service.SurveyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +20,9 @@ import java.util.List;
 @RequestMapping("/api/enrollments")
 @RequiredArgsConstructor
 public class EnrollmentController {
+
+    /** 한 번에 가져갈 수 있는 최대 건수. */
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final EnrollmentService enrollmentService;
     private final SurveyService surveyService;
@@ -36,16 +43,22 @@ public class EnrollmentController {
     }
 
     /**
-     * GET /enrollments/my - 내 수강 목록 조회
-     * Gateway가 전달한 X-User-Id 헤더를 사용
+     * GET /enrollments/my - 내 수강 목록 조회 (서버 페이징)
+     * Gateway가 전달한 X-User-Id 헤더를 사용. status를 주면 해당 상태만 조회한다.
+     * 정렬은 최신순 고정 — 페이지 간 순서가 흔들리지 않도록 결정적 정렬 키를 둔다.
      */
     @GetMapping("/my")
-    public ResponseEntity<EnrollmentDto.ApiResponse<List<EnrollmentDto.EnrollmentResponse>>> getMyEnrollments(
-            @RequestHeader("X-User-Id") Long userId) {
+    public ResponseEntity<EnrollmentDto.ApiResponse<EnrollmentDto.MyEnrollmentsResponse>> getMyEnrollments(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Enrollment.Status status) {
 
-        List<EnrollmentDto.EnrollmentResponse> response =
-                enrollmentService.getEnrollmentsByUser(userId);
-        return ResponseEntity.ok(EnrollmentDto.ApiResponse.success(response));
+        Pageable pageable = PageRequest.of(
+                page, Math.min(size, MAX_PAGE_SIZE), Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        return ResponseEntity.ok(EnrollmentDto.ApiResponse.success(
+                enrollmentService.getMyEnrollments(userId, status, pageable)));
     }
 
     /**

@@ -57,6 +57,9 @@ public class EnrollmentDto {
         // 추가
         private CourseSummary course;
 
+        /** 이 수강 건에 대해 본인이 만족도 설문을 제출했는지 여부 (프론트에서 설문 버튼 상태 결정용). */
+        private boolean surveySubmitted;
+
         public static EnrollmentResponse from(Enrollment enrollment) {
             return EnrollmentResponse.builder()
                     .id(enrollment.getId())
@@ -68,6 +71,10 @@ public class EnrollmentDto {
         }
 
         public static EnrollmentResponse from(Enrollment enrollment, CourseSummary course) {
+            return from(enrollment, course, false);
+        }
+
+        public static EnrollmentResponse from(Enrollment enrollment, CourseSummary course, boolean surveySubmitted) {
             return EnrollmentResponse.builder()
                     .id(enrollment.getId())
                     .userId(enrollment.getUserId())
@@ -75,7 +82,35 @@ public class EnrollmentDto {
                     .status(enrollment.getStatus())
                     .createdAt(enrollment.getCreatedAt())
                     .course(course)
+                    .surveySubmitted(surveySubmitted)
                     .build();
+        }
+    }
+
+    // 내 수강 목록 (서버 페이징 + 상태별 요약)
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class MyEnrollmentsResponse {
+        private List<EnrollmentResponse> content;
+        private int page;
+        private int size;
+        private long totalElements;
+        private int totalPages;
+        private boolean first;
+        private boolean last;
+        private Summary summary;
+
+        /** 현재 페이지·상태 필터와 무관한 전체 기준 집계. */
+        @Getter
+        @NoArgsConstructor
+        @AllArgsConstructor
+        @Builder
+        public static class Summary {
+            private long active;
+            private long pending;
+            private long total;
         }
     }
 

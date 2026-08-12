@@ -97,6 +97,23 @@ public class UserDto {
         private String resetUrl;
     }
 
+    /**
+     * BFF 토큰 교환 요청.
+     * SPA가 Authorization Code 흐름에서 받은 code를 서버로 넘기면, 서버가 client_secret을 붙여
+     * auth-server와 교환한다 — 시크릿이 브라우저로 내려가지 않도록 하기 위한 경로.
+     */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class TokenRequest {
+        @NotBlank(message = "인가 코드는 필수입니다")
+        private String code;
+
+        @NotBlank(message = "redirectUri는 필수입니다")
+        private String redirectUri;
+    }
+
     // 사용자 정보 응답
     @Getter
     @NoArgsConstructor

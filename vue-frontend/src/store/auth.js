@@ -69,7 +69,9 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await authApi.exchangeCode(code)
     console.log('[AuthStore] token response =', res.data)
 
-    const token = res?.data?.access_token
+    // BFF 가 인가 서버 응답을 그대로 흘려보낼 수도, ApiResponse 봉투에 담을 수도 있다.
+    const body = res?.data?.data ?? res?.data
+    const token = body?.access_token ?? body?.accessToken
 
     if (!token) {
       throw new Error('액세스 토큰을 받지 못했습니다.')

@@ -1,8 +1,12 @@
 import api from './index.js'
 
 export const enrollmentApi = {
-  getMyEnrollments() {
-    return api.get('/api/enrollments/my')
+  // 내 계약 목록. 응답 data = {content, page, size, totalElements, totalPages, first, last,
+  // summary:{active, pending, total}}. page 는 0 부터 세고, summary 는 상태 필터와 무관한 전체 집계다.
+  // content 의 각 항목에는 만족도 제출 여부(surveySubmitted)가 실려 온다.
+  // params: { page, size, status }
+  getMy(params) {
+    return api.get('/api/enrollments/my', { params })
   },
 
   enroll(courseId) {

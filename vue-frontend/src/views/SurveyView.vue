@@ -50,8 +50,6 @@
           </div>
         </div>
 
-        <p v-if="checkingSubmission" class="muted-note">제출 여부를 확인하는 중입니다.</p>
-
         <p v-if="!tabItems.length" class="muted-note">이 구분에 해당하는 교육이 없습니다.</p>
 
         <table v-else>
@@ -202,14 +200,13 @@ import HrdLayout from '@/components/HrdLayout.vue'
 import PagerBar from '@/components/PagerBar.vue'
 import { enrollmentApi, surveyApi } from '@/api/enrollment.js'
 import { usePagedList } from '@/composables/usePagedList.js'
-import { deliveryTypeLabel, formatDate, formatSchedule, unwrapObjectResponse } from '@/utils/hrd.js'
+import { deliveryTypeLabel, formatDate, formatSchedule, unwrapListResponse, unwrapObjectResponse } from '@/utils/hrd.js'
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(true)
 const submitting = ref(false)
-const checkingSubmission = ref(false)
 const enrollments = ref([])
 const selectedId = ref(null)
 const message = ref('')
@@ -347,7 +344,8 @@ async function loadSummary(courseId) {
 // 명세 02_functional_spec.md:259 의 향후 권장 API. 제출한 의견을 결과 화면에 되싣는다.
 async function loadMySurvey(enrollmentId) {
   mySurvey.value = null
-  if (!enrollmentId || notImplemented.value) return
+  // 미제출 건은 서버가 404 로 답하도록 설계돼 있다. 목록이 준 제출 여부로 걸러 헛호출을 막는다.
+  if (!enrollmentId || notImplemented.value || !submitted[enrollmentId]) return
   try {
     mySurvey.value = unwrapObjectResponse(await surveyApi.getByEnrollment(enrollmentId))
     if (mySurvey.value) submitted[enrollmentId] = true
@@ -357,38 +355,6 @@ async function loadMySurvey(enrollmentId) {
     else if (isEndpointMissing(error)) notImplemented.value = true
     else console.error('[Survey] 제출 내역 조회 실패:', error)
   }
-}
-
-/**
- * 제출 완료/미제출 탭을 정확히 나누려면 항목마다 제출 여부를 알아야 한다.
- * 명세에 제출 여부를 목록으로 주는 API 가 없어 건별로 조회한다(N+1).
- * 한꺼번에 쏘지 않도록 동시 요청 수를 제한한다.
- * 백엔드가 `GET /api/enrollments/my` 응답에 제출 여부를 실어 주면 이 함수는 지운다.
- */
-async function loadSubmissionStates(items, concurrency = 5) {
-  checkingSubmission.value = true
-  const queue = [...items]
-  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-    while (queue.length) {
-      const item = queue.shift()
-      if (notImplemented.value) return
-      try {
-        const found = unwrapObjectResponse(await surveyApi.getByEnrollment(item.id))
-        if (found) submitted[item.id] = true
-      } catch (error) {
-        // 404 는 "이 계약은 아직 미제출" 이라는 정상 응답이다.
-        if (error?.response?.status === 404) continue
-        if (isEndpointMissing(error)) {
-          // 엔드포인트 자체가 없으므로 나머지 조회를 멈춘다.
-          notImplemented.value = true
-          return
-        }
-        console.error(`[Survey] 계약 ${item.id} 제출 여부 조회 실패:`, error)
-      }
-    }
-  })
-  await Promise.all(workers)
-  checkingSubmission.value = false
 }
 
 async function handleSubmit() {
@@ -435,8 +401,12 @@ watch(activeTab, () => {
 
 onMounted(async () => {
   try {
-    const res = await enrollmentApi.getMyEnrollments()
-    enrollments.value = Array.isArray(res.data?.data) ? res.data.data : []
+    // 확정 교육만 다루므로 상태를 서버에서 거른다.
+    // ponytail: 확정 교육이 100건을 넘으면 뒤쪽이 빠진다. 그때는 이 화면도 페이지를 나눠야 한다.
+    const res = await enrollmentApi.getMy({ page: 0, size: 100, status: 'ACTIVE' })
+    enrollments.value = unwrapListResponse(res)
+    // 제출 여부는 목록 응답에 실려 온다(계약마다 따로 조회하지 않는다).
+    enrollments.value.forEach(item => { submitted[item.id] = Boolean(item.surveySubmitted) })
     const queryCourseId = Number(route.query.courseId)
     const preset = activeEnrollments.value.find(item => Number(item.courseId) === queryCourseId)
     selectedId.value = preset?.id ?? activeEnrollments.value[0]?.id ?? null
@@ -446,7 +416,5 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-
-  if (activeEnrollments.value.length) await loadSubmissionStates(activeEnrollments.value)
 })
 </script>

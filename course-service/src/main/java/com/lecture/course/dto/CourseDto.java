@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
+import org.springframework.data.domain.Page;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -90,6 +91,33 @@ public class CourseDto {
                     .enrollmentCount(course.getEnrollmentCount())
                     .status(course.getStatus())
                     .createdAt(course.getCreatedAt())
+                    .build();
+        }
+    }
+
+    // 서버 페이징 응답 (강의 목록)
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class PageResult<T> {
+        private List<T> content;
+        private int page;
+        private int size;
+        private long totalElements;
+        private int totalPages;
+        private boolean first;
+        private boolean last;
+
+        public static <T> PageResult<T> from(Page<T> page) {
+            return PageResult.<T>builder()
+                    .content(page.getContent())
+                    .page(page.getNumber())
+                    .size(page.getSize())
+                    .totalElements(page.getTotalElements())
+                    .totalPages(page.getTotalPages())
+                    .first(page.isFirst())
+                    .last(page.isLast())
                     .build();
         }
     }

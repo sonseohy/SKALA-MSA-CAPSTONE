@@ -5,6 +5,9 @@ import com.lecture.course.entity.Course;
 import com.lecture.course.service.CourseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +18,9 @@ import java.util.List;
 @RequestMapping("/api/courses")
 @RequiredArgsConstructor
 public class CourseController {
+
+    /** 한 번에 가져갈 수 있는 최대 건수 — size를 크게 넣어 전체를 긁어가는 것을 막는다. */
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final CourseService courseService;
 
@@ -33,13 +39,33 @@ public class CourseController {
     }
 
     /**
-     * GET /courses - 전체 강의 목록
+     * GET /courses - 활성 강의 목록 (서버 페이징)
+     * 쿼리 파라미터는 전부 선택 사항. sort: popular(기본) | latest | priceAsc | priceDesc
      */
     @GetMapping
-    public ResponseEntity<CourseDto.ApiResponse<List<CourseDto.CourseResponse>>> getAllCourses() {
+    public ResponseEntity<CourseDto.ApiResponse<CourseDto.PageResult<CourseDto.CourseResponse>>> getCourses(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "popular") String sort,
+            @RequestParam(required = false) Course.Category category,
+            @RequestParam(required = false) Course.DeliveryType deliveryType,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String region) {
+
+        Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE), resolveSort(sort));
         return ResponseEntity.ok(
-                CourseDto.ApiResponse.success(courseService.getAllCourses())
+                CourseDto.ApiResponse.success(
+                        courseService.getCourses(category, deliveryType, keyword, region, pageable))
         );
+    }
+
+    private static Sort resolveSort(String sort) {
+        return switch (sort) {
+            case "latest" -> Sort.by(Sort.Direction.DESC, "createdAt");
+            case "priceAsc" -> Sort.by(Sort.Direction.ASC, "price");
+            case "priceDesc" -> Sort.by(Sort.Direction.DESC, "price");
+            default -> Sort.by(Sort.Direction.DESC, "enrollmentCount");
+        };
     }
 
     /**

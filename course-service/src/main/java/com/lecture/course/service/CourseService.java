@@ -4,6 +4,8 @@ import com.lecture.course.dto.CourseDto;
 import com.lecture.course.entity.Course;
 import com.lecture.course.repository.CourseRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +60,42 @@ public class CourseService {
         return courseRepository.findByStatus(Course.Status.ACTIVE).stream()
                 .map(CourseDto.CourseResponse::from)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 활성 강의 목록 - 서버 페이징 + 선택적 필터
+     * - 필터는 전부 optional. 지정된 것만 AND로 조립한다.
+     * - 정렬은 호출부(Controller)가 Pageable에 실어 전달한다.
+     */
+    public CourseDto.PageResult<CourseDto.CourseResponse> getCourses(
+            Course.Category category,
+            Course.DeliveryType deliveryType,
+            String keyword,
+            String region,
+            Pageable pageable) {
+
+        Specification<Course> spec =
+                (root, query, cb) -> cb.equal(root.get("status"), Course.Status.ACTIVE);
+
+        if (category != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("category"), category));
+        }
+        if (deliveryType != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("deliveryType"), deliveryType));
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            String pattern = "%" + keyword.toLowerCase() + "%";
+            spec = spec.and((root, query, cb) -> cb.or(
+                    cb.like(cb.lower(root.get("title")), pattern),
+                    cb.like(cb.lower(root.get("targetAudience")), pattern)));
+        }
+        if (region != null && !region.isBlank()) {
+            String pattern = "%" + region.toLowerCase() + "%";
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("region")), pattern));
+        }
+
+        return CourseDto.PageResult.from(
+                courseRepository.findAll(spec, pageable).map(CourseDto.CourseResponse::from));
     }
 
     /**

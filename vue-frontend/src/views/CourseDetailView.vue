@@ -80,7 +80,7 @@ import { courseApi } from '@/api/course.js'
 import { enrollmentApi } from '@/api/enrollment.js'
 import { useAuthStore } from '@/store/auth.js'
 import { useProviderNames } from '@/composables/useProviderNames.js'
-import { avatarColor, formatPrice, normalizeCourse, parseCourseDescription, unwrapObjectResponse } from '@/utils/hrd.js'
+import { avatarColor, formatPrice, normalizeCourse, parseCourseDescription, unwrapListResponse, unwrapObjectResponse } from '@/utils/hrd.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -118,8 +118,10 @@ const helperText = computed(() => {
 async function loadStatus() {
   if (!auth.user?.id || !course.value?.id || isInstructor.value) return
   try {
-    const res = await enrollmentApi.getMyEnrollments()
-    const items = Array.isArray(res.data?.data) ? res.data.data : []
+    // courseId 로 한 건만 찾는 API 가 없어 내 계약 목록에서 고른다.
+    // ponytail: 계약이 100건을 넘으면 뒤쪽 계약을 놓친다. 그때는 courseId 조회 API 가 필요하다.
+    const res = await enrollmentApi.getMy({ page: 0, size: 100 })
+    const items = unwrapListResponse(res)
     const matched = items.find(item => Number(item.courseId) === Number(course.value.id))
     status.value = matched?.status || 'NONE'
   } catch {

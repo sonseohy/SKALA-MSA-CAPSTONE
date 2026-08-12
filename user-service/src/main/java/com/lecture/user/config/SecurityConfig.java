@@ -36,6 +36,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/register").permitAll()
                         // 비밀번호 재설정(발급/확정)은 토큰이 없는 상태에서 호출되므로 인증 불필요
                         .requestMatchers("/api/users/password/**").permitAll()
+                        // BFF 토큰 교환 — 토큰을 발급받기 위한 호출이므로 인증 불필요
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/users/token").permitAll()
                         .requestMatchers(
                                 "/api-docs/**",
                                 "/swagger-ui/**",

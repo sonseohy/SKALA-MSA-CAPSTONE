@@ -107,11 +107,12 @@ import { courseApi } from '@/api/course.js'
 import { enrollmentApi } from '@/api/enrollment.js'
 import { useAuthStore } from '@/store/auth.js'
 import { useProviderNames } from '@/composables/useProviderNames.js'
-import { isProviderRole, normalizeCourse, unwrapListResponse } from '@/utils/hrd.js'
+import { isProviderRole, normalizeCourse, unwrapListResponse, unwrapObjectResponse } from '@/utils/hrd.js'
 
 const auth = useAuthStore()
 const courses = ref([])
-const enrollments = ref([])
+// 내 계약은 건수만 필요하다. 서버가 주는 요약(상태 필터·페이지와 무관한 전체 집계)을 그대로 쓴다.
+const enrollmentSummary = ref({ active: 0, pending: 0, total: 0 })
 const loading = ref(true)
 const loadError = ref(false)
 const { resolve: resolveProviderNames } = useProviderNames()
@@ -128,8 +129,9 @@ const myCourses = computed(() => (
 ))
 
 const previewCourses = computed(() => myCourses.value.slice(0, 4).map(normalizeCourse))
-const activeCount = computed(() => enrollments.value.filter(item => item.status === 'ACTIVE').length)
-const pendingCount = computed(() => enrollments.value.filter(item => item.status === 'PENDING').length)
+const activeCount = computed(() => enrollmentSummary.value.active)
+const pendingCount = computed(() => enrollmentSummary.value.pending)
+const enrollmentCount = computed(() => enrollmentSummary.value.total)
 
 const dashboardTitle = computed(() => (
   isProvider.value ? `공급자 대시보드, ${displayName.value}님` : `${displayName.value}님, 반갑습니다.`
@@ -184,7 +186,7 @@ const tasks = computed(() => {
   if (activeCount.value) {
     list.push({ icon: 'SV', title: '만족도 조사 대상', description: `확정된 교육 ${activeCount.value}건에 만족도를 남길 수 있습니다.`, due: '', to: '/surveys', urgent: false })
   }
-  if (!enrollments.value.length) {
+  if (!enrollmentCount.value) {
     list.push({ icon: 'AI', title: '추천 교육 검토', description: '아직 신청한 교육이 없습니다. 추천 후보부터 확인해 보세요.', due: '', to: '/recommendations', urgent: false })
   }
   return list
@@ -207,7 +209,7 @@ const workflowSteps = computed(() => (
     : [
         { label: 'Needs 분석', done: hasNeeds.value },
         { label: '과정 추천', done: hasNeeds.value },
-        { label: '계약 신청', done: enrollments.value.length > 0 },
+        { label: '계약 신청', done: enrollmentCount.value > 0 },
         { label: '교육 확정', done: activeCount.value > 0 },
         { label: '만족도 조사', done: false }
       ]
@@ -238,7 +240,8 @@ const metrics = computed(() => {
 onMounted(async () => {
   const [courseRes, enrollRes] = await Promise.allSettled([
     courseApi.getAll(),
-    enrollmentApi.getMyEnrollments()
+    // 목록은 쓰지 않고 요약만 쓰므로 한 건만 받는다.
+    enrollmentApi.getMy({ page: 0, size: 1 })
   ])
 
   if (courseRes.status === 'fulfilled') {
@@ -249,7 +252,8 @@ onMounted(async () => {
   }
 
   if (enrollRes.status === 'fulfilled') {
-    enrollments.value = Array.isArray(enrollRes.value.data?.data) ? enrollRes.value.data.data : []
+    const summary = unwrapObjectResponse(enrollRes.value)?.summary
+    if (summary) enrollmentSummary.value = summary
   } else {
     console.error('[HrdDashboard] 내 계약 조회 실패:', enrollRes.reason)
   }

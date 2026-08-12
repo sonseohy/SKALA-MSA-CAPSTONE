@@ -2,17 +2,22 @@ package com.lecture.enrollment.service;
 
 import com.lecture.enrollment.dto.EnrollmentDto;
 import com.lecture.enrollment.entity.Enrollment;
+import com.lecture.enrollment.entity.Survey;
 import com.lecture.enrollment.kafka.EnrollmentKafkaProducer;
 import com.lecture.enrollment.kafka.KafkaEvent;
 import com.lecture.enrollment.repository.EnrollmentRepository;
+import com.lecture.enrollment.repository.SurveyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -22,6 +27,7 @@ import java.util.stream.Collectors;
 public class EnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
+    private final SurveyRepository surveyRepository;
     private final CourseServiceClient courseServiceClient;
     private final PaymentServiceClient paymentServiceClient;
     private final EnrollmentKafkaProducer kafkaProducer;
@@ -83,66 +89,125 @@ public class EnrollmentService {
         List<Enrollment> enrollments = enrollmentRepository.findByUserId(userId);
 
         return enrollments.stream()
-                .map(enrollment -> {
-                    Map<String, Object> courseInfo = courseServiceClient.getCourse(enrollment.getCourseId());
-
-                    EnrollmentDto.CourseSummary courseSummary = EnrollmentDto.CourseSummary.builder()
-                            .id(toLong(courseInfo.get("id")))
-                            .title((String) courseInfo.get("title"))
-                            .description((String) courseInfo.get("description"))
-                            .category(normalizeCategory((String) courseInfo.get("category")))
-                            .price(toInteger(courseInfo.get("price")))
-                            .durationDays(toInteger(
-                                    firstNonNullObject(
-                                            courseInfo.get("durationDays"),
-                                            courseInfo.get("duration_days")
-                                    )
-                            ))
-                            .startDate(toStringValue(
-                                    firstNonNullObject(
-                                            courseInfo.get("startDate"),
-                                            courseInfo.get("start_date")
-                                    )
-                            ))
-                            .endDate(toStringValue(
-                                    firstNonNullObject(
-                                            courseInfo.get("endDate"),
-                                            courseInfo.get("end_date")
-                                    )
-                            ))
-                            .deliveryType(toStringValue(
-                                    firstNonNullObject(
-                                            courseInfo.get("deliveryType"),
-                                            courseInfo.get("delivery_type")
-                                    )
-                            ))
-                            .targetAudience(toStringValue(
-                                    firstNonNullObject(
-                                            courseInfo.get("targetAudience"),
-                                            courseInfo.get("target_audience")
-                                    )
-                            ))
-                            .region(toStringValue(courseInfo.get("region")))
-                            .difficulty(toStringValue(courseInfo.get("difficulty")))
-                            .thumbnail((String) courseInfo.get("thumbnail"))
-                            .instructorName(
-                                    firstNonNull(
-                                            (String) courseInfo.get("instructorName"),
-                                            (String) courseInfo.get("teacherName"),
-                                            (String) courseInfo.get("instructor_name")
-                                    )
-                            )
-                            .enrollmentCount(toInteger(
-                                    firstNonNullObject(
-                                            courseInfo.get("enrollmentCount"),
-                                            courseInfo.get("enrollment_count")
-                                    )
-                            ))
-                            .build();
-
-                    return EnrollmentDto.EnrollmentResponse.from(enrollment, courseSummary);
-                })
+                .map(enrollment -> EnrollmentDto.EnrollmentResponse.from(
+                        enrollment, toCourseSummary(enrollment.getCourseId())))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 내 수강 목록 - 서버 페이징 + 상태 필터 + 만족도 제출 여부
+     * - status가 null이면 전체 상태를 대상으로 한다.
+     * - surveySubmitted는 현재 페이지의 enrollmentId를 한 번에 조회해 판별한다(건별 조회 금지).
+     */
+    public EnrollmentDto.MyEnrollmentsResponse getMyEnrollments(
+            Long userId, Enrollment.Status status, Pageable pageable) {
+
+        Page<Enrollment> page = status == null
+                ? enrollmentRepository.findByUserId(userId, pageable)
+                : enrollmentRepository.findByUserIdAndStatus(userId, status, pageable);
+
+        Set<Long> surveyedEnrollmentIds = findSurveyedEnrollmentIds(userId, page.getContent());
+
+        List<EnrollmentDto.EnrollmentResponse> content = page.getContent().stream()
+                .map(enrollment -> EnrollmentDto.EnrollmentResponse.from(
+                        enrollment,
+                        toCourseSummary(enrollment.getCourseId()),
+                        surveyedEnrollmentIds.contains(enrollment.getId())))
+                .collect(Collectors.toList());
+
+        EnrollmentDto.MyEnrollmentsResponse.Summary summary =
+                EnrollmentDto.MyEnrollmentsResponse.Summary.builder()
+                        .active(enrollmentRepository.countByUserIdAndStatus(userId, Enrollment.Status.ACTIVE))
+                        .pending(enrollmentRepository.countByUserIdAndStatus(userId, Enrollment.Status.PENDING))
+                        .total(enrollmentRepository.countByUserId(userId))
+                        .build();
+
+        return EnrollmentDto.MyEnrollmentsResponse.builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .first(page.isFirst())
+                .last(page.isLast())
+                .summary(summary)
+                .build();
+    }
+
+    private Set<Long> findSurveyedEnrollmentIds(Long userId, List<Enrollment> enrollments) {
+        if (enrollments.isEmpty()) {
+            return Set.of();
+        }
+
+        List<Long> enrollmentIds = enrollments.stream()
+                .map(Enrollment::getId)
+                .collect(Collectors.toList());
+
+        return surveyRepository.findByUserIdAndEnrollmentIdIn(userId, enrollmentIds).stream()
+                .map(Survey::getEnrollmentId)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * course-service의 강의 상세 응답을 목록 표시용 요약으로 변환.
+     * 필드명이 camelCase/snake_case 어느 쪽으로도 올 수 있어 둘 다 받아준다.
+     */
+    private EnrollmentDto.CourseSummary toCourseSummary(Long courseId) {
+        Map<String, Object> courseInfo = courseServiceClient.getCourse(courseId);
+
+        return EnrollmentDto.CourseSummary.builder()
+                .id(toLong(courseInfo.get("id")))
+                .title((String) courseInfo.get("title"))
+                .description((String) courseInfo.get("description"))
+                .category(normalizeCategory((String) courseInfo.get("category")))
+                .price(toInteger(courseInfo.get("price")))
+                .durationDays(toInteger(
+                        firstNonNullObject(
+                                courseInfo.get("durationDays"),
+                                courseInfo.get("duration_days")
+                        )
+                ))
+                .startDate(toStringValue(
+                        firstNonNullObject(
+                                courseInfo.get("startDate"),
+                                courseInfo.get("start_date")
+                        )
+                ))
+                .endDate(toStringValue(
+                        firstNonNullObject(
+                                courseInfo.get("endDate"),
+                                courseInfo.get("end_date")
+                        )
+                ))
+                .deliveryType(toStringValue(
+                        firstNonNullObject(
+                                courseInfo.get("deliveryType"),
+                                courseInfo.get("delivery_type")
+                        )
+                ))
+                .targetAudience(toStringValue(
+                        firstNonNullObject(
+                                courseInfo.get("targetAudience"),
+                                courseInfo.get("target_audience")
+                        )
+                ))
+                .region(toStringValue(courseInfo.get("region")))
+                .difficulty(toStringValue(courseInfo.get("difficulty")))
+                .thumbnail((String) courseInfo.get("thumbnail"))
+                .instructorName(
+                        firstNonNull(
+                                (String) courseInfo.get("instructorName"),
+                                (String) courseInfo.get("teacherName"),
+                                (String) courseInfo.get("instructor_name")
+                        )
+                )
+                .enrollmentCount(toInteger(
+                        firstNonNullObject(
+                                courseInfo.get("enrollmentCount"),
+                                courseInfo.get("enrollment_count")
+                        )
+                ))
+                .build();
     }
 
     /**

@@ -104,6 +104,8 @@ export function normalizeCourse(course) {
 export function unwrapListResponse(response) {
   const payload = response?.data
   if (Array.isArray(payload?.data)) return payload.data
+  // 서버 페이징 응답(PageResult·MyEnrollmentsResponse)은 목록이 content 에 들어온다.
+  if (Array.isArray(payload?.data?.content)) return payload.data.content
   if (Array.isArray(payload?.recommendedCourses)) return payload.recommendedCourses
   if (Array.isArray(payload)) return payload
   return []

@@ -1,6 +1,7 @@
 package com.lecture.user.controller;
 
 import com.lecture.user.dto.UserDto;
+import com.lecture.user.entity.User;
 import com.lecture.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -26,6 +28,17 @@ public class UserController {
         UserDto.UserResponse response = userService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(UserDto.ApiResponse.success(response));
+    }
+
+    /**
+     * GET /users - 사용자 목록 조회 (인증 필요)
+     * ids: 콤마 구분 id 목록, role: STUDENT|INSTRUCTOR. 둘 다 선택 사항.
+     */
+    @GetMapping
+    public ResponseEntity<UserDto.ApiResponse<List<UserDto.UserResponse>>> getUsers(
+            @RequestParam(required = false) List<Long> ids,
+            @RequestParam(required = false) User.Role role) {
+        return ResponseEntity.ok(UserDto.ApiResponse.success(userService.getUsers(ids, role)));
     }
 
     /**
